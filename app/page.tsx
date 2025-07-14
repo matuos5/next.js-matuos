@@ -16,6 +16,16 @@ export default function Home() {
             <source src="https://files.catbox.moe/5tckv3.mp4" type="video/mp4" />
             المتصفح لا يدعم تشغيل الفيديو.
           </video>
+
+          {/* زر القناة على واتساب */}
+          <a
+            href="https://whatsapp.com/channel/0029VaklBGFHFxOwODjsoP13"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-6 bg-white text-black font-semibold py-2 px-6 rounded-full shadow hover:bg-gray-100 transition-colors"
+          >
+            الدخول إلى قناة واتساب
+          </a>
         </div>
       </main>
     </div>
