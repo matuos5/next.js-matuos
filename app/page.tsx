@@ -22,10 +22,15 @@ export default function Home() {
   ];
 
   useEffect(() => {
-    // الحصول على المؤشر من localStorage أو البدء من 0
-    const lastIndex = parseInt(localStorage.getItem('videoIndex') || '0', 10);
-    const nextIndex = (lastIndex + 1) % videoList.length;
-    setVideoSrc(videoList[nextIndex]);
+    // احصل على رقم الفيديو السابق من localStorage
+    const storedIndex = parseInt(localStorage.getItem('videoIndex') || '0', 10);
+    const index = isNaN(storedIndex) ? 0 : storedIndex % videoList.length;
+
+    // اعرض الفيديو المناسب
+    setVideoSrc(videoList[index]);
+
+    // احفظ المؤشر التالي للزيارة القادمة
+    const nextIndex = (index + 1) % videoList.length;
     localStorage.setItem('videoIndex', nextIndex.toString());
   }, []);
 
