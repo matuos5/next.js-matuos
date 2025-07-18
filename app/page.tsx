@@ -1,12 +1,35 @@
+"use client";
+import { useEffect, useRef, useState } from "react";
+import { Volume2, VolumeX } from "lucide-react"; // أيقونات حديثة
+
 export default function Home() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [muted, setMuted] = useState(true);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) {
+      video.muted = true;
+      video.volume = 1;
+    }
+  }, []);
+
+  const toggleMute = () => {
+    const video = videoRef.current;
+    if (video) {
+      video.muted = !video.muted;
+      setMuted(video.muted);
+    }
+  };
+
   return (
     <div className="relative w-screen h-screen overflow-hidden font-[family-name:var(--font-geist-sans)]">
-      {/* الفيديو يغطي كامل الشاشة */}
+      {/* الفيديو */}
       <video
+        ref={videoRef}
         className="absolute top-0 left-0 w-full h-full object-cover z-0"
         src="https://files.catbox.moe/5tckv3.mp4"
         autoPlay
-        muted
         loop
         playsInline
       >
@@ -19,7 +42,6 @@ export default function Home() {
           ⚡ مرحبًا بك في عالم ساسكي ⚡
         </h1>
 
-        {/* أزرار واتساب */}
         <div className="flex flex-col gap-4">
           <a
             href="https://whatsapp.com/channel/0029VaklBGFHFxOwODjsoP13"
@@ -39,6 +61,15 @@ export default function Home() {
           </a>
         </div>
       </div>
+
+      {/* زر الصوت العائم */}
+      <button
+        onClick={toggleMute}
+        className="fixed bottom-6 right-6 z-20 bg-black/60 text-white p-3 rounded-full shadow-lg hover:bg-black/80 transition-all"
+        aria-label="تبديل الصوت"
+      >
+        {muted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+      </button>
     </div>
   );
 }
