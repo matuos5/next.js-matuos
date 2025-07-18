@@ -13,31 +13,33 @@ export default function Home() {
     'https://files.catbox.moe/khkrho.mp4',
     'https://files.catbox.moe/14wrkb.mp4',
     'https://files.catbox.moe/bfy2ay.mp4',
+    'https://files.catbox.moe/u33ebv.mp4',
+    'https://files.catbox.moe/c9nm0w.mp4',
+    'https://files.catbox.moe/gdjj3z.mp4',
+    'https://files.catbox.moe/x2urk7.mp4',
+    'https://files.catbox.moe/mq3g8u.mp4',
+    'https://files.catbox.moe/oxvc5b.mp4',
   ];
 
   useEffect(() => {
-    // اختيار فيديو عشوائي
-    const randomIndex = Math.floor(Math.random() * videoList.length);
-    const selectedVideo = videoList[randomIndex];
-    setVideoSrc(selectedVideo);
+    // الحصول على المؤشر من localStorage أو البدء من 0
+    const lastIndex = parseInt(localStorage.getItem('videoIndex') || '0', 10);
+    const nextIndex = (lastIndex + 1) % videoList.length;
+    setVideoSrc(videoList[nextIndex]);
+    localStorage.setItem('videoIndex', nextIndex.toString());
   }, []);
 
   useEffect(() => {
     const video = videoRef.current;
     if (video) {
-      // تأكد من muted وتشغيل الفيديو عند الجاهزية
       video.muted = true;
       video.playsInline = true;
 
       const playPromise = video.play();
       if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            // التشغيل تم بنجاح
-          })
-          .catch((error) => {
-            console.warn('فشل تشغيل الفيديو تلقائيًا، في انتظار تفاعل المستخدم.', error);
-          });
+        playPromise.catch((error) => {
+          console.warn('فشل تشغيل الفيديو تلقائيًا، في انتظار تفاعل المستخدم.', error);
+        });
       }
     }
   }, [videoSrc]);
