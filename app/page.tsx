@@ -1,6 +1,5 @@
-"use client";
-import { useRef, useState, useEffect } from "react";
-import { Volume2, VolumeX } from "lucide-react";
+'use client';
+import { useRef, useEffect, useState } from 'react';
 
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -67,10 +66,9 @@ export default function Home() {
       {/* زر الصوت العائم */}
       <button
         onClick={toggleMute}
-        className="fixed bottom-6 right-6 z-20 bg-black/60 text-white p-3 rounded-full shadow-lg hover:bg-black/80 transition-all"
-        aria-label="تبديل الصوت"
+        className="fixed bottom-6 right-6 z-20 bg-white text-black font-bold p-3 rounded-full shadow-lg hover:bg-gray-200 transition-all"
       >
-        {muted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+        {muted ? 'تشغيل الصوت' : 'كتم الصوت'}
       </button>
     </div>
   );
