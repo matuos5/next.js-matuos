@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { Volume2, VolumeX } from "lucide-react"; // أيقونات حديثة
+import { useRef, useState, useEffect } from "react";
+import { Volume2, VolumeX } from "lucide-react";
 
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -24,12 +24,13 @@ export default function Home() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden font-[family-name:var(--font-geist-sans)]">
-      {/* الفيديو */}
+      {/* الفيديو يغطي كامل الشاشة */}
       <video
         ref={videoRef}
         className="absolute top-0 left-0 w-full h-full object-cover z-0"
         src="https://files.catbox.moe/5tckv3.mp4"
         autoPlay
+        muted
         loop
         playsInline
       >
@@ -42,6 +43,7 @@ export default function Home() {
           ⚡ مرحبًا بك في عالم ساسكي ⚡
         </h1>
 
+        {/* أزرار واتساب */}
         <div className="flex flex-col gap-4">
           <a
             href="https://whatsapp.com/channel/0029VaklBGFHFxOwODjsoP13"
