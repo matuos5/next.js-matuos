@@ -1,33 +1,44 @@
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        {/* إضافة الفيديو والعبارة */}
-        <div className="flex flex-col items-center w-full">
-          <h1 className="text-4xl sm:text-5xl font-extrabold mb-6 text-center text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600">
-            ⚡ مرحبًا بك في عالم ساسكي ⚡
-          </h1>
-          <video
-            className="w-full max-w-2xl rounded-xl shadow-lg"
-            controls
-            autoPlay
-            loop
-          >
-            <source src="https://files.catbox.moe/5tckv3.mp4" type="video/mp4" />
-            المتصفح لا يدعم تشغيل الفيديو.
-          </video>
+    <div className="relative w-screen h-screen overflow-hidden font-[family-name:var(--font-geist-sans)]">
+      {/* الفيديو يغطي كامل الشاشة */}
+      <video
+        className="absolute top-0 left-0 w-full h-full object-cover z-0"
+        src="https://files.catbox.moe/5tckv3.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+      >
+        المتصفح لا يدعم تشغيل الفيديو.
+      </video>
 
-          {/* زر القناة على واتساب */}
+      {/* المحتوى فوق الفيديو */}
+      <div className="relative z-10 flex flex-col items-center justify-center h-full px-4 text-center bg-black/50">
+        <h1 className="text-4xl sm:text-5xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600">
+          ⚡ مرحبًا بك في عالم ساسكي ⚡
+        </h1>
+
+        {/* أزرار واتساب */}
+        <div className="flex flex-col gap-4">
           <a
             href="https://whatsapp.com/channel/0029VaklBGFHFxOwODjsoP13"
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-6 bg-white text-black font-semibold py-2 px-6 rounded-full shadow hover:bg-gray-100 transition-colors"
+            className="bg-white/90 text-black font-semibold py-3 px-8 rounded-full shadow-lg hover:bg-white transition-all duration-200"
           >
             الدخول إلى قناة واتساب
           </a>
+          <a
+            href="https://wa.me/201229466261"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-green-500 text-white font-semibold py-3 px-8 rounded-full shadow-lg hover:bg-green-600 transition-all duration-200"
+          >
+            التحدث معي على واتساب
+          </a>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
