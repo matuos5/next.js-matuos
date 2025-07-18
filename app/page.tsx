@@ -1,11 +1,27 @@
 'use client';
 import { useRef, useEffect, useState } from 'react';
+import { Volume2, VolumeX } from 'lucide-react';
 
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
+  const [videoSrc, setVideoSrc] = useState('');
 
+  // قائمة الفيديوهات المتاحة
+  const videoList = [
+    'https://files.catbox.moe/5tckv3.mp4', // الفيديو الأصلي
+    'https://files.catbox.moe/rlqfsa.mp4',
+    'https://files.catbox.moe/pkviy4.mp4',
+    'https://files.catbox.moe/khkrho.mp4',
+    'https://files.catbox.moe/14wrkb.mp4',
+    'https://files.catbox.moe/bfy2ay.mp4',
+  ];
+
+  // اختيار فيديو عشوائي عند أول تحميل
   useEffect(() => {
+    const randomIndex = Math.floor(Math.random() * videoList.length);
+    setVideoSrc(videoList[randomIndex]);
+
     const video = videoRef.current;
     if (video) {
       video.muted = true;
@@ -27,7 +43,7 @@ export default function Home() {
       <video
         ref={videoRef}
         className="absolute top-0 left-0 w-full h-full object-cover z-0"
-        src="https://files.catbox.moe/5tckv3.mp4"
+        src={videoSrc}
         autoPlay
         muted
         loop
@@ -66,9 +82,10 @@ export default function Home() {
       {/* زر الصوت العائم */}
       <button
         onClick={toggleMute}
-        className="fixed bottom-6 right-6 z-20 bg-white text-black font-bold p-3 rounded-full shadow-lg hover:bg-gray-200 transition-all"
+        className="fixed bottom-6 right-6 z-20 bg-black/70 text-white p-3 rounded-full shadow-lg hover:bg-black/90 transition-all"
+        aria-label="تبديل الصوت"
       >
-        {muted ? 'تشغيل الصوت' : 'كتم الصوت'}
+        {muted ? <VolumeX size={24} /> : <Volume2 size={24} />}
       </button>
     </div>
   );
