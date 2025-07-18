@@ -1,14 +1,13 @@
 'use client';
-import { useRef, useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
   const [videoSrc, setVideoSrc] = useState('');
 
-  // قائمة الفيديوهات
   const videoList = [
-    'https://files.catbox.moe/5tckv3.mp4', // الفيديو الأصلي
+    'https://files.catbox.moe/5tckv3.mp4',
     'https://files.catbox.moe/rlqfsa.mp4',
     'https://files.catbox.moe/pkviy4.mp4',
     'https://files.catbox.moe/khkrho.mp4',
@@ -21,20 +20,33 @@ export default function Home() {
     const randomIndex = Math.floor(Math.random() * videoList.length);
     const selectedVideo = videoList[randomIndex];
     setVideoSrc(selectedVideo);
+  }, []);
 
+  useEffect(() => {
     const video = videoRef.current;
     if (video) {
+      // تأكد من muted وتشغيل الفيديو عند الجاهزية
       video.muted = true;
-      video.volume = 1;
+      video.playsInline = true;
+
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            // التشغيل تم بنجاح
+          })
+          .catch((error) => {
+            console.warn('فشل تشغيل الفيديو تلقائيًا، في انتظار تفاعل المستخدم.', error);
+          });
+      }
     }
-  }, []);
+  }, [videoSrc]);
 
   const toggleMute = () => {
     const video = videoRef.current;
     if (video) {
-      const newMuted = !video.muted;
-      video.muted = newMuted;
-      setMuted(newMuted);
+      video.muted = !video.muted;
+      setMuted(video.muted);
     }
   };
 
