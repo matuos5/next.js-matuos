@@ -7,18 +7,7 @@ export default function Home() {
   const [videoSrc, setVideoSrc] = useState('');
 
   const videoList = [
-    'https://files.catbox.moe/5tckv3.mp4',
-    'https://files.catbox.moe/rlqfsa.mp4',
-    'https://files.catbox.moe/pkviy4.mp4',
-    'https://files.catbox.moe/khkrho.mp4',
-    'https://files.catbox.moe/14wrkb.mp4',
-    'https://files.catbox.moe/bfy2ay.mp4',
-    'https://files.catbox.moe/u33ebv.mp4',
-    'https://files.catbox.moe/c9nm0w.mp4',
-    'https://files.catbox.moe/gdjj3z.mp4',
-    'https://files.catbox.moe/x2urk7.mp4',
-    'https://files.catbox.moe/mq3g8u.mp4',
-    'https://files.catbox.moe/oxvc5b.mp4',
+    'https://files.catbox.moe/h0touo.mp4',
   ];
 
   useEffect(() => {
