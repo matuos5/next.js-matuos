@@ -7,7 +7,7 @@ export default function Home() {
   const [videoSrc, setVideoSrc] = useState('');
 
   const videoList = [
-    'https://files.catbox.moe/5zs4vr.mp4',
+    'https://files.catbox.moe/sazmig.mp4',
   ];
 
   useEffect(() => {
