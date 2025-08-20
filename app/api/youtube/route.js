@@ -1,3 +1,5 @@
+export const runtime = "nodejs";
+
 import ytdl from "ytdl-core";
 import yts from "yt-search";
 
@@ -13,7 +15,6 @@ export async function GET(req) {
       );
     }
 
-    // جلب الفيديو
     let videoId;
     if (ytdl.validateURL(q)) {
       videoId = ytdl.getURLVideoID(q);
@@ -37,7 +38,6 @@ export async function GET(req) {
     const time = info.videoDetails.lengthSeconds;
     const url = `https://www.youtube.com/watch?v=${videoId}`;
 
-    // روابط التحميل
     const audio = ytdl.chooseFormat(info.formats, { quality: "highestaudio" }).url;
     const video = ytdl.chooseFormat(info.formats, { quality: "highestvideo" }).url;
 
