@@ -11,9 +11,7 @@
   "dependencies": {
     "react": "19.0.0-rc-66855b96-20241106",
     "react-dom": "19.0.0-rc-66855b96-20241106",
-    "next": "15.0.3","ytdl-core": "^4.11.5",
-  "yt-search": "^2.10.6","cheerio": "^1.0.0",
-  "node-fetch": "^3.3.2"
+    "next": "15.0.3"
   },
   "devDependencies": {
     "typescript": "^5",
