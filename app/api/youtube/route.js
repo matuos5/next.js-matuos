@@ -1,47 +1,45 @@
+import { NextResponse } from "next/server";
 import yts from "yt-search";
-import fetch from "node-fetch";
-import * as cheerio from "cheerio";
 
-export default async function handler(req, res) {
+export async function GET(req) {
   try {
-    const { q } = req.query;
+    const { searchParams } = new URL(req.url);
+    const q = searchParams.get("q");
+
     if (!q) {
-      return res.status(400).json({ error: "برجاء إدخال اسم أو رابط للبحث" });
+      return NextResponse.json(
+        { error: "مطلوب اسم او رابط البحث كـ ?q=..." },
+        { status: 400 }
+      );
     }
 
-    // نعمل بحث عن الفيديو
-    const searchResult = await yts(q);
-    if (!searchResult || !searchResult.videos.length) {
-      return res.status(404).json({ error: "لم يتم العثور على أي نتائج" });
+    // yt-search يقبل اسم او رابط يوتيوب
+    const results = await yts(q);
+
+    const video = results?.videos?.[0];
+    if (!video) {
+      return NextResponse.json(
+        { error: "لم يتم العثور على نتائج" },
+        { status: 404 }
+      );
     }
 
-    const video = searchResult.videos[0];
-    const videoUrl = video.url;
-
-    // نجيب صفحة الفيديو عشان نطلع منها الروابط
-    const page = await fetch(videoUrl).then(r => r.text());
-    const $ = cheerio.load(page);
-
-    // هنا مجرد placeholder للروابط (محتاج طريقة تكمّل استخراج مباشر)
-    const downloadLinks = {
-      audio: videoUrl,
-      video: videoUrl,
+    const data = {
+      title: video.title,
+      videoId: video.videoId,
+      url: video.url,           // رابط اليوتيوب الأصلي (البوت يستخدمه للتحميل)
+      thumbnail: video.thumbnail,
+      duration: video.timestamp,
+      views: video.views,
+      ago: video.ago,
+      author: video.author?.name || null,
     };
 
-    return res.status(200).json({
-      title: video.title,
-      description: video.description,
-      thumbnail: video.thumbnail,
-      time: video.timestamp,
-      ago: video.ago,
-      views: video.views,
-      url: video.url,
-      author: video.author.name,
-      channel: video.author.url,
-      video: downloadLinks.video,
-      audio: downloadLinks.audio,
-    });
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return NextResponse.json({ status: "ok", data }, { status: 200 });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err?.message || "حدث خطأ غير متوقع" },
+      { status: 500 }
+    );
   }
 }
