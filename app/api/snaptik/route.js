@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import vm from "vm";
+import * as cheerio from "cheerio";
 
 export async function GET(req) {
   try {
@@ -16,25 +16,45 @@ export async function GET(req) {
     }
 
     const start = Date.now();
+
     const html = await fetch(
       `https://snaptik.app/action.php?url=${encodeURIComponent(url)}`,
       {
         method: "GET",
         headers: {
           "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120 Safari/537.36",
         },
       }
     ).then((r) => r.text());
 
-    const unpacked = tryUnpackPackedEval(html);
+    // استخدم cheerio عشان نفك الـ HTML
+    const $ = cheerio.load(html);
+
+    // SnapTik غالباً بيحط روابط الفيديوهات في <a download> أو <video src>
+    const links = [];
+    $("a").each((_, el) => {
+      const href = $(el).attr("href");
+      if (href && href.startsWith("http")) {
+        links.push(href);
+      }
+    });
+
+    $("video").each((_, el) => {
+      const src = $(el).attr("src");
+      if (src && src.startsWith("http")) {
+        links.push(src);
+      }
+    });
 
     return NextResponse.json({
       code: 0,
       msg: "success",
       processed_time: (Date.now() - start) / 1000,
-      data: {},
-      raw: unpacked,
+      data: {
+        count: links.length,
+        links,
+      },
     });
   } catch (error) {
     return NextResponse.json({
@@ -43,42 +63,5 @@ export async function GET(req) {
       processed_time: 0,
       data: {},
     });
-  }
-}
-
-function tryUnpackPackedEval(text) {
-  try {
-    const str = String(text);
-
-    if (
-      !str.includes("eval(function(") &&
-      !str.includes("eval (function(")
-    ) {
-      return null;
-    }
-
-    const replaced = str.replace(/eval\s*\(/g, "var __decoded = (");
-
-    const sandbox = {
-      __decoded: null,
-      decodeURIComponent,
-      escape,
-      unescape,
-      String,
-      Math,
-      Array,
-      Object,
-      RegExp,
-      Date,
-      Number,
-      Boolean,
-    };
-
-    vm.createContext(sandbox);
-    vm.runInContext(replaced, sandbox, { timeout: 2000 });
-
-    return String(sandbox.__decoded || "");
-  } catch {
-    return null;
   }
 }
