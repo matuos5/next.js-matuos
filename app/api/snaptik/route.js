@@ -1,4 +1,5 @@
-// app/api/snaptik/route.js
+import { VM } from "vm2"
+
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url)
@@ -34,13 +35,22 @@ eyMTc1NzkxNjA1Nw==c
       body,
     })
 
-    const text = await response.text()
+    const script = await response.text()
 
-    // استخراج روابط mp4 أو m4a من النص
+    // تشغيل الكود باستخدام VM
+    const vm = new VM({ sandbox: {} })
+    let html = ""
+    try {
+      html = vm.run(script)
+    } catch (e) {
+      return Response.json({ success: false, error: "فشل فك التشفير" }, { status: 500 })
+    }
+
+    // استخراج اللينكات من HTML الناتج
     const regex = /(https?:\/\/[^\s"']+\.(mp4|m4a))/g
     const links = []
     let match
-    while ((match = regex.exec(text)) !== null) {
+    while ((match = regex.exec(html)) !== null) {
       links.push(match[1])
     }
 
