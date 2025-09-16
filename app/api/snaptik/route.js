@@ -20,7 +20,9 @@ export async function GET(req) {
           'Content-Length': '62',
           'sec-ch-ua-platform': '"Android"',
           'User-Agent': 'Mozilla/5.0 (Linux; Android 12; M2007J20CG Build/SKQ1.211019.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.7258.160 Mobile Safari/537.36',
+          'Accept': 'application/json, text/plain, */*',
           'sec-ch-ua': '"Not;A=Brand";v="99", "Android WebView";v="139", "Chromium";v="139"',
+          'Content-Type': 'application/json',
           'sec-ch-ua-mobile': '?1',
           'Origin': 'https://ttsave.app',
           'X-Requested-With': 'mark.via.gp',
@@ -34,7 +36,8 @@ export async function GET(req) {
       }
     );
 
-    // استخراج رابط الفيديو النهائي من الاستجابة
+    // استخراج رابط الفيديو من استجابة ttsave.app
+    // عادةً يكون في response.data.data.video.download
     const videoLink = response.data?.data?.video?.download || null;
 
     if (!videoLink) {
