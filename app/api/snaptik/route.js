@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import vm from "vm";
-import fetch from "node-fetch";
 
 export async function GET(req) {
   try {
