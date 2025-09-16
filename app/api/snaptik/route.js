@@ -28,32 +28,32 @@ export async function GET(req) {
       }
     ).then((r) => r.text());
 
-    // استخدم cheerio عشان نفك الـ HTML
     const $ = cheerio.load(html);
+    let videoLink = null;
 
-    // SnapTik غالباً بيحط روابط الفيديوهات في <a download> أو <video src>
-    const links = [];
+    // نجرب نجيب أول رابط موجود في <a download> أو <video src> وينتهي بـ mp4
     $("a").each((_, el) => {
       const href = $(el).attr("href");
-      if (href && href.startsWith("http")) {
-        links.push(href);
+      if (!videoLink && href && href.startsWith("http") && href.endsWith(".mp4")) {
+        videoLink = href;
       }
     });
 
-    $("video").each((_, el) => {
-      const src = $(el).attr("src");
-      if (src && src.startsWith("http")) {
-        links.push(src);
-      }
-    });
+    if (!videoLink) {
+      $("video").each((_, el) => {
+        const src = $(el).attr("src");
+        if (!videoLink && src && src.startsWith("http")) {
+          videoLink = src;
+        }
+      });
+    }
 
     return NextResponse.json({
       code: 0,
-      msg: "success",
+      msg: videoLink ? "success" : "No video found",
       processed_time: (Date.now() - start) / 1000,
       data: {
-        count: links.length,
-        links,
+        link: videoLink || null,
       },
     });
   } catch (error) {
