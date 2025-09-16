@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import puppeteer from "puppeteer-core";
-import chromium from "chrome-aws-lambda";
+import { chromium } from "playwright-chromium";
 
 export async function GET(req) {
   try {
@@ -11,16 +10,10 @@ export async function GET(req) {
       return NextResponse.json({ code: 0, msg: "No URL provided", data: null }, { status: 400 });
     }
 
-    // تشغيل Puppeteer مع Chromium الخاص بـ Vercel
-    const browser = await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath,
-      headless: true,
-    });
-
+    // تشغيل Chromium باستخدام Playwright
+    const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
-    await page.goto(tiktokUrl, { waitUntil: "networkidle2" });
+    await page.goto(tiktokUrl, { waitUntil: "networkidle" });
 
     // جلب رابط الفيديو من صفحة تيك توك
     const videoLink = await page.evaluate(() => {
