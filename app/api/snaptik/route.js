@@ -19,9 +19,9 @@ export async function GET(req) {
     const data = extractDataFromText(sourceForParse);
 
     return jsonResponse(0, "success", data, start, { raw: String(raw).slice(0, 20000) });
-  } catch (_err) {
-    console.error("Unhandled error in GET:", _err);
-    return jsonResponse(-1, String(_err?.message || _err), {}, start);
+  } catch (err) {
+    console.error("Unhandled error in GET:", err);
+    return jsonResponse(-1, String(err?.message || err), {}, start);
   }
 }
 
@@ -49,19 +49,13 @@ async function postToSnaptik(videoUrl) {
   return await res.text();
 }
 
-/**
- * Try to unpack `eval(function(...` packed JS by replacing first eval( with var __decoded = (
- * then run in a sandboxed vm. If fails, return null.
- */
 function tryUnpackPackedEval(text) {
   try {
     const str = String(text);
-    if (!str.includes("eval(function(") && !str.includes("eval (function(")) {
+    if (!str.includes("eval(function(") && !str.includes("eval (function("))) {
       return null;
     }
-
     const replaced = str.replace(/eval\s*\(/, "var __decoded = (");
-
     const sandbox = {
       decodeURIComponent,
       escape,
@@ -75,28 +69,18 @@ function tryUnpackPackedEval(text) {
       Number,
       Boolean,
     };
-
     vm.createContext(sandbox);
     vm.runInContext(replaced, sandbox, { timeout: 2000 });
-    const decoded = sandbox.__decoded;
-    if (!decoded) return null;
-    return String(decoded);
-  } catch (_err) {
-    // لا ترجع خطأ هنا — سنستخدم الـ raw لاحقًا
-    console.error("unpack error:", _err);
+    return String(sandbox.__decoded || "");
+  } catch {
     return null;
   }
 }
 
-/**
- * استخراج روابط وحقول من النص (المفكوك أو raw)
- */
 function extractDataFromText(txt) {
   const text = String(txt);
-
   const mp4Regex = /https?:\/\/[^\s"']+\.mp4[^\s"']*/g;
   const mp4Matches = uniqueMatches(text.match(mp4Regex) || []);
-
   const imgRegex = /https?:\/\/[^\s"']+\.(?:jpg|jpeg|png|webp|gif)[^\s"']*/g;
   const imgMatches = uniqueMatches(text.match(imgRegex) || []);
 
@@ -106,8 +90,8 @@ function extractDataFromText(txt) {
     return m ? Number(m[1]) : null;
   };
 
-  const play_count = getNumber("play_count") ?? getNumber("playcount") ?? null;
-  const digg_count = getNumber("digg_count") ?? getNumber("likes") ?? null;
+  const play_count = getNumber("play_count") ?? null;
+  const digg_count = getNumber("digg_count") ?? null;
   const comment_count = getNumber("comment_count") ?? null;
   const share_count = getNumber("share_count") ?? null;
   const download_count = getNumber("download_count") ?? null;
@@ -128,14 +112,9 @@ function extractDataFromText(txt) {
           avatar: parsed.avatar ?? parsed.avatar_url ?? parsed.avatarUrl ?? null,
         };
       }
-    } else {
-      const nick = text.match(/"nickname"\s*:\s*"([^"]+)"/);
-      const av = text.match(/"avatar"\s*:\s*"([^"]+)"/);
-      if (nick) author.nickname = nick[1];
-      if (av) author.avatar = av[1];
     }
-  } catch (_err2) {
-    console.error("author parse error:", _err2);
+  } catch {
+    // تجاهل أخطاء المؤلف
   }
 
   const wmPlay = mp4Matches.find((u) => /wm|watermark|wmplay/i.test(u)) || null;
@@ -199,11 +178,11 @@ function uniqueMatches(arr) {
 function tryParseJsonLoose(str) {
   try {
     return JSON.parse(str);
-  } catch (_err3) {
+  } catch {
     const s2 = str.replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":');
     try {
       return JSON.parse(s2);
-    } catch (_err4) {
+    } catch {
       return null;
     }
   }
@@ -212,5 +191,8 @@ function tryParseJsonLoose(str) {
 function jsonResponse(code, msg, data, startTime, extra = {}) {
   const processed_time = Number(((Date.now() - startTime) / 1000).toFixed(4));
   const body = { code, msg, processed_time, data, ...extra };
-  return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 }
