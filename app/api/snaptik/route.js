@@ -1,15 +1,11 @@
 // app/api/snaptik/route.js
-
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url)
     const url = searchParams.get("url")
 
     if (!url) {
-      return Response.json(
-        { success: false, error: "يرجى إرسال بارامتر url" },
-        { status: 400 }
-      )
+      return Response.json({ success: false, error: "يرجى إرسال بارامتر url" }, { status: 400 })
     }
 
     const body = `------WebKitFormBoundaryJS7G2eJPBusA2onQ
@@ -40,9 +36,9 @@ eyMTc1NzkxNjA1Nw==c
 
     const text = await response.text()
 
-    // استخراج كل اللينكات من <a href="...">
+    // استخراج روابط mp4 أو m4a من النص
+    const regex = /(https?:\/\/[^\s"']+\.(mp4|m4a))/g
     const links = []
-    const regex = /<a[^>]+href="([^"]+)"[^>]*>/g
     let match
     while ((match = regex.exec(text)) !== null) {
       links.push(match[1])
@@ -54,9 +50,6 @@ eyMTc1NzkxNjA1Nw==c
       links,
     })
   } catch (err) {
-    return Response.json(
-      { success: false, error: err.message },
-      { status: 500 }
-    )
+    return Response.json({ success: false, error: err.message }, { status: 500 })
   }
 }
