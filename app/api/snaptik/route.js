@@ -1,3 +1,4 @@
+// app/api/snaptik/route.js
 export async function GET(req) {
   const start = Date.now();
   try {
@@ -10,16 +11,17 @@ export async function GET(req) {
       );
     }
 
+    // هنا بنبعت الطلب لموقع snaptik
     const raw = await postToSnaptik(url);
 
-    // هنا لسه ما نفكّكناش، هنرجّع الـ raw كمان
+    // دلوقتي بنرجع raw + بيانات افتراضية
     const processed_time = Number(((Date.now() - start) / 1000).toFixed(4));
     const out = {
       code: 0,
       msg: "success",
       processed_time,
-      data: buildDataFromText(raw, extractLinksFromText(raw)),
-      raw: raw.slice(0, 5000) // نرجع أول 5000 حرف علشان ما يفجرش الرد
+      data: {}, // لحد ما نفك الرد
+      raw: raw.slice(0, 5000) // أول 5000 حرف علشان نشوف المحتوى
     };
     return new Response(JSON.stringify(out), { status: 200, headers: { "Content-Type": "application/json" } });
   } catch (err) {
@@ -29,4 +31,24 @@ export async function GET(req) {
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
+}
+
+// ===== Helper functions =====
+
+// يبعث POST لموقع snaptik
+async function postToSnaptik(videoUrl) {
+  const form = new URLSearchParams();
+  form.append("url", videoUrl);
+
+  const res = await fetch("https://snaptik.app/abc2.php", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+      "X-Requested-With": "XMLHttpRequest"
+    },
+    body: form.toString()
+  });
+
+  if (!res.ok) throw new Error(`snaptik error: ${res.status}`);
+  return await res.text();
 }
