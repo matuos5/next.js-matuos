@@ -122,6 +122,7 @@ eyMTc1NzkxNjA1Nw==c
       unpacked: Boolean(unpacked),
       count: links.length,
       links,
+      debug: text.slice(0, 500) // أول 500 حرف من الرد الخام
     });
   } catch (err) {
     return Response.json(
