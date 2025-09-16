@@ -15,10 +15,7 @@ export async function GET(req) {
 
     const response = await axios.post(
       'https://ttsave.app/download',
-      {
-        query: tiktokUrl,
-        language_id: '1'
-      },
+      { query: tiktokUrl, language_id: '1' },
       {
         headers: {
           'Host': 'ttsave.app',
@@ -39,9 +36,10 @@ export async function GET(req) {
       }
     );
 
-    const data = response.data || null;
+    // هنا نفترض أن رابط التحميل موجود في response.data.download_url
+    const downloadUrl = response.data?.download_url;
 
-    if (!data) {
+    if (!downloadUrl) {
       return NextResponse.json(
         { code: 0, msg: "No video found", data: null },
         { status: 404 }
@@ -49,7 +47,7 @@ export async function GET(req) {
     }
 
     return NextResponse.json(
-      { code: 1, msg: "success", data },
+      { code: 1, msg: "success", data: { downloadUrl } },
       { status: 200 }
     );
 
