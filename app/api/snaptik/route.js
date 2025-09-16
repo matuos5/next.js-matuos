@@ -40,9 +40,18 @@ eyMTc1NzkxNjA1Nw==c
 
     const text = await response.text()
 
+    // استخراج كل اللينكات من <a href="...">
+    const links = []
+    const regex = /<a[^>]+href="([^"]+)"[^>]*>/g
+    let match
+    while ((match = regex.exec(text)) !== null) {
+      links.push(match[1])
+    }
+
     return Response.json({
       success: true,
-      data: text,
+      count: links.length,
+      links,
     })
   } catch (err) {
     return Response.json(
