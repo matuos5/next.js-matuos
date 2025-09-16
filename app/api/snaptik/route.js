@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import axios from "axios";
 
-export async function POST(req) {
+export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const tiktokUrl = searchParams.get("url");
@@ -39,8 +39,8 @@ export async function POST(req) {
       }
     );
 
-    // التحقق إذا البيانات موجودة
     const data = response.data || null;
+
     if (!data) {
       return NextResponse.json(
         { code: 0, msg: "No video found", data: null },
