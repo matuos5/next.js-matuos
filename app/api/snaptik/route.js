@@ -17,15 +17,17 @@ export async function GET(req) {
     }
 
     const start = Date.now();
-    const html = await fetch(`https://snaptik.app/action.php?url=${encodeURIComponent(url)}`, {
-      method: "GET",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      },
-    }).then((r) => r.text());
+    const html = await fetch(
+      `https://snaptik.app/action.php?url=${encodeURIComponent(url)}`,
+      {
+        method: "GET",
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        },
+      }
+    ).then((r) => r.text());
 
-    // نحاول نفك الأكواد المضغوطة
     const unpacked = tryUnpackPackedEval(html);
 
     return NextResponse.json({
@@ -49,12 +51,13 @@ function tryUnpackPackedEval(text) {
   try {
     const str = String(text);
 
-    // لو مفيش eval .. رجّع null
-    if (!str.includes("eval(function(") && !str.includes("eval (function("))) {
+    if (
+      !str.includes("eval(function(") &&
+      !str.includes("eval (function(")
+    ) {
       return null;
     }
 
-    // هنا التعديل: استخدمنا g و هربنا الأقواس
     const replaced = str.replace(/eval\s*\(/g, "var __decoded = (");
 
     const sandbox = {
