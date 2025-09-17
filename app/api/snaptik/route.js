@@ -9,7 +9,11 @@ export async function GET(req) {
 
     if (!url) {
       return NextResponse.json(
-        { code: 400, msg: "Missing TikTok URL" },
+        {
+          owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
+          code: 400,
+          msg: "يرجى اضافة رابط تيك توك صالح",
+        },
         { status: 400 }
       );
     }
@@ -39,19 +43,29 @@ export async function GET(req) {
 
     if (!downloadLink) {
       return NextResponse.json(
-        { code: 404, msg: "No download link found" },
+        {
+          owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
+          code: 404,
+          msg: "No download link found",
+        },
         { status: 404 }
       );
     }
 
     return NextResponse.json({
+      owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
       code: 0,
       msg: "success",
       data: { link: downloadLink },
     });
   } catch (err) {
     return NextResponse.json(
-      { code: 500, msg: "Internal error", error: err.message },
+      {
+        owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
+        code: 500,
+        msg: "Internal error",
+        error: err.message,
+      },
       { status: 500 }
     );
   }
