@@ -1,6 +1,5 @@
 // app/api/download/route.js
 import { NextResponse } from "next/server";
-import zlib from "zlib";
 
 export async function GET(req) {
   try {
@@ -22,44 +21,17 @@ export async function GET(req) {
     const response = await fetch("https://ttsave.app/download", {
       method: "POST",
       headers: {
-        "Host": "ttsave.app",
-        "Connection": "keep-alive",
-        "sec-ch-ua-platform": '"Android"',
+        "Content-Type": "application/json",
         "User-Agent":
           "Mozilla/5.0 (Linux; Android 12; M2007J20CG Build/SKQ1.211019.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.7258.160 Mobile Safari/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "sec-ch-ua":
-          '"Not;A=Brand";v="99", "Android WebView";v="139", "Chromium";v="139"',
-        "Content-Type": "application/json",
-        "sec-ch-ua-mobile": "?1",
-        "Origin": "https://ttsave.app",
-        "X-Requested-With": "mark.via.gp",
-        "Sec-Fetch-Site": "same-origin",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Dest": "empty",
-        "Referer": "https://ttsave.app/en",
-        "Accept-Encoding": "gzip, deflate, br, zstd",
-        "Accept-Language": "ar,en-GB;q=0.9,en-US;q=0.8,en;q=0.7",
+        Accept: "application/json, text/plain, */*",
+        Origin: "https://ttsave.app",
+        Referer: "https://ttsave.app/en",
       },
       body: JSON.stringify(body),
     });
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const encoding = response.headers.get("content-encoding");
-
-    let decompressed;
-    if (encoding === "gzip") {
-      decompressed = zlib.gunzipSync(buffer).toString("utf-8");
-    } else if (encoding === "deflate") {
-      decompressed = zlib.inflateSync(buffer).toString("utf-8");
-    } else if (encoding === "br") {
-      decompressed = zlib.brotliDecompressSync(buffer).toString("utf-8");
-    } else {
-      decompressed = buffer.toString("utf-8");
-    }
-
-    const data = JSON.parse(decompressed);
-
+    const data = await response.json();
     return NextResponse.json(data);
   } catch (err) {
     return NextResponse.json(
