@@ -1,5 +1,6 @@
 // app/api/download/route.js
 import { NextResponse } from "next/server";
+import zlib from "zlib";
 
 export async function GET(req) {
   try {
@@ -43,19 +44,23 @@ export async function GET(req) {
       body: JSON.stringify(body),
     });
 
-    const text = await response.text();
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const encoding = response.headers.get("content-encoding");
 
-    try {
-      // حاول نحوله JSON
-      const data = JSON.parse(text);
-      return NextResponse.json(data);
-    } catch {
-      // لو مش JSON رجعه نص عادي
-      return NextResponse.json(
-        { code: 502, msg: "Non-JSON response", data: text.slice(0, 500) },
-        { status: 502 }
-      );
+    let decompressed;
+    if (encoding === "gzip") {
+      decompressed = zlib.gunzipSync(buffer).toString("utf-8");
+    } else if (encoding === "deflate") {
+      decompressed = zlib.inflateSync(buffer).toString("utf-8");
+    } else if (encoding === "br") {
+      decompressed = zlib.brotliDecompressSync(buffer).toString("utf-8");
+    } else {
+      decompressed = buffer.toString("utf-8");
     }
+
+    const data = JSON.parse(decompressed);
+
+    return NextResponse.json(data);
   } catch (err) {
     return NextResponse.json(
       { code: 500, msg: "Internal error", error: err.message },
