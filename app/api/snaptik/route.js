@@ -1,5 +1,6 @@
 // app/api/download/route.js
 import { NextResponse } from "next/server";
+import * as cheerio from "cheerio";
 
 export async function GET(req) {
   try {
@@ -21,40 +22,33 @@ export async function GET(req) {
     const response = await fetch("https://ttsave.app/download", {
       method: "POST",
       headers: {
-        "Host": "ttsave.app",
-        "Connection": "keep-alive",
-        "sec-ch-ua-platform": '"Android"',
+        "Content-Type": "application/json",
+        "Origin": "https://ttsave.app",
+        "Referer": "https://ttsave.app/en",
         "User-Agent":
           "Mozilla/5.0 (Linux; Android 12; M2007J20CG Build/SKQ1.211019.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.7258.160 Mobile Safari/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "sec-ch-ua":
-          '"Not;A=Brand";v="99", "Android WebView";v="139", "Chromium";v="139"',
-        "Content-Type": "application/json",
-        "sec-ch-ua-mobile": "?1",
-        "Origin": "https://ttsave.app",
-        "X-Requested-With": "mark.via.gp",
-        "Sec-Fetch-Site": "same-origin",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Dest": "empty",
-        "Referer": "https://ttsave.app/en",
-        "Accept-Language": "ar,en-GB;q=0.9,en-US;q=0.8,en;q=0.7",
       },
       body: JSON.stringify(body),
     });
 
-    const text = await response.text();
+    const html = await response.text();
+    const $ = cheerio.load(html);
 
-    // حاول نعمل parse للـ JSON
-    try {
-      const data = JSON.parse(text);
-      return NextResponse.json(data);
-    } catch {
-      // رجّع النص زي ما هو لو مش JSON
+    // استخراج أول لينك تحميل
+    const downloadLink = $("#button-download-ready a").attr("href");
+
+    if (!downloadLink) {
       return NextResponse.json(
-        { code: 502, msg: "Server did not return JSON", raw: text.slice(0, 300) },
-        { status: 502 }
+        { code: 404, msg: "No download link found" },
+        { status: 404 }
       );
     }
+
+    return NextResponse.json({
+      code: 0,
+      msg: "success",
+      data: { link: downloadLink },
+    });
   } catch (err) {
     return NextResponse.json(
       { code: 500, msg: "Internal error", error: err.message },
