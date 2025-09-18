@@ -1,9 +1,8 @@
 // app/api/push-event/route.js
 import { NextResponse } from "next/server";
 
-export async function GET(req) {
+export async function GET() {
   try {
-    // يمكنك لاحقاً إضافة query params لتغيير بعض البيانات
     const body = {
       event: "request",
       zone_id: 1081313,
