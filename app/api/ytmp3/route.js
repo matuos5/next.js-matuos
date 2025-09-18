@@ -1,6 +1,5 @@
 // app/api/download/route.js
 import { NextResponse } from "next/server";
-import fetch from "node-fetch";
 import * as zlib from "zlib";
 
 export async function POST(req) {
@@ -22,21 +21,22 @@ export async function POST(req) {
       body: postData.toString()
     });
 
-    let buffer = await response.arrayBuffer();
+    let arrayBuffer = await response.arrayBuffer();
+    let buffer = Buffer.from(arrayBuffer);
     let contentEncoding = response.headers.get("content-encoding");
     let decoded;
 
     if (contentEncoding === "gzip") {
-      decoded = zlib.gunzipSync(Buffer.from(buffer));
+      decoded = zlib.gunzipSync(buffer);
     } else if (contentEncoding === "br") {
-      decoded = zlib.brotliDecompressSync(Buffer.from(buffer));
+      decoded = zlib.brotliDecompressSync(buffer);
     } else {
-      decoded = Buffer.from(buffer);
+      decoded = buffer;
     }
 
     let text = decoded.toString("utf-8");
 
-    // محاولة استخراج رابط الفيديو أو الملف من الـ HTML
+    // استخراج رابط الفيديو من النص
     const videoMatch = text.match(/https?:\/\/[^\s'"]+\.(mp4|webm)/);
     const videoUrl = videoMatch ? videoMatch[0] : null;
 
