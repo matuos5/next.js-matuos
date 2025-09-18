@@ -1,6 +1,5 @@
 // app/api/ssvid/route.js
 import { NextResponse } from "next/server";
-import * as cheerio from "cheerio";
 import qs from "querystring";
 
 export async function GET(req) {
@@ -28,8 +27,7 @@ export async function GET(req) {
     });
     const html = await pageRes.text();
 
-    // 2️⃣ تحليل HTML لاستخراج vid و k
-    const $ = cheerio.load(html);
+    // 2️⃣ استخراج vid و k من HTML مباشرة
     const vidMatch = html.match(/vid\s*=\s*["']([a-zA-Z0-9_-]+)["']/);
     const kMatch = html.match(/k\s*=\s*["']([^"']+)["']/);
 
