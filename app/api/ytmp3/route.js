@@ -17,8 +17,7 @@ export async function POST(req) {
       );
     }
 
-    const body = qs.stringify({ vid, k });
-
+    // استخدمنا body مباشرة في fetch لتجنب التحذير
     const response = await fetch("https://ssvid.net/api/ajax/convert?hl=en", {
       method: "POST",
       headers: {
@@ -29,6 +28,7 @@ export async function POST(req) {
         "User-Agent":
           "Mozilla/5.0 (Linux; Android 12; M2007J20CG Build/SKQ1.211019.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.7258.160 Mobile Safari/537.36",
       },
+      body: qs.stringify({ vid, k }),
     });
 
     const data = await response.json();
