@@ -1,91 +1,57 @@
-// app/api/ytmp3/route.js
+// app/api/download/route.js
 import { NextResponse } from "next/server";
-import * as cheerio from "cheerio";
+import fetch from "node-fetch";
+import * as zlib from "zlib";
 
-export async function GET(req) {
-  const start = Date.now();
+export async function POST(req) {
   try {
-    const { searchParams } = new URL(req.url);
-    const url = searchParams.get("url"); // رابط الفيديو أو ID
+    const body = await req.json();
+    const userData = body.data || "";
 
-    if (!url) {
-      return NextResponse.json(
-        {
-          owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
-          code: 400,
-          msg: "يرجى ادخال رابط أو ID صالح",
-        },
-        { status: 400 }
-      );
-    }
+    // بيانات مشابهة للـ curl الأصلي
+    const postData = new URLSearchParams(userData);
 
-    // إعداد body للـ POST
-    const body = { query: url };
-    const response = await fetch("https://nuun.mnuu.nu/api/v1/download", {
-      method: "POST",
+    const response = await fetch('https://rv400.com/?z=9454635&syncedCookie=false&rhd=false', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "Origin": "https://nuun.mnuu.nu",
-        "Referer": "https://nuun.mnuu.nu/",
-        "User-Agent":
-          "Mozilla/5.0 (Linux; Android 12; M2007J20CG) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139 Mobile Safari/537.36",
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Origin': 'https://rv400.com',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 12; M2007J20CG Build/SKQ1.211019.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.7258.160 Mobile Safari/537.36',
+        'Accept-Encoding': 'gzip, deflate, br'
       },
-      body: JSON.stringify(body),
+      body: postData.toString()
     });
 
-    const contentType = response.headers.get("content-type") || "";
-    let downloadLink = null;
+    let buffer = await response.arrayBuffer();
+    let contentEncoding = response.headers.get("content-encoding");
+    let decoded;
 
-    if (contentType.includes("application/json")) {
-      // لو Nuun رجعت JSON مباشر
-      const json = await response.json();
-      if (json && json.data && json.data.link) {
-        downloadLink = json.data.link;
-      }
+    if (contentEncoding === "gzip") {
+      decoded = zlib.gunzipSync(Buffer.from(buffer));
+    } else if (contentEncoding === "br") {
+      decoded = zlib.brotliDecompressSync(Buffer.from(buffer));
     } else {
-      // لو HTML
-      const html = await response.text();
-      const $ = cheerio.load(html);
-
-      // أول محاولة: استخدام selectors شائعة
-      downloadLink = $('a[href$=".mp3"], a[href$=".mp4"], a.download, a#download, a.btn').first().attr("href");
-
-      // لو ما لاقيش شيء، استخدم regex عام
-      if (!downloadLink) {
-        const match = html.match(/https?:\/\/[^\s'"]+\.(mp3|mp4)/i);
-        if (match) downloadLink = match[0];
-      }
+      decoded = Buffer.from(buffer);
     }
 
-    if (!downloadLink) {
-      return NextResponse.json(
-        {
-          owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
-          code: 404,
-          msg: "No download link found",
-        },
-        { status: 404 }
-      );
-    }
+    let text = decoded.toString("utf-8");
 
-    // JSON وهمي مثل TikTok downloader
+    // محاولة استخراج رابط الفيديو أو الملف من الـ HTML
+    const videoMatch = text.match(/https?:\/\/[^\s'"]+\.(mp4|webm)/);
+    const videoUrl = videoMatch ? videoMatch[0] : null;
+
     return NextResponse.json({
       owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
-      code: 0,
-      msg: "success",
-      processed_time: (Date.now() - start) / 1000,
-      data: { link: downloadLink },
+      code: videoUrl ? 1 : 404,
+      msg: videoUrl ? "success" : "No video found",
+      data: videoUrl
     });
-
-  } catch (err) {
-    return NextResponse.json(
-      {
-        owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
-        code: 500,
-        msg: "Internal error",
-        error: err.message,
-      },
-      { status: 500 }
-    );
+  } catch (e) {
+    return NextResponse.json({
+      owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
+      code: 500,
+      msg: "Server error",
+      error: e.message
+    });
   }
 }
