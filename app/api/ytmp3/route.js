@@ -1,13 +1,20 @@
 // app/api/push-event/route.js
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(req) {
   try {
+    const { searchParams } = new URL(req.url);
+
+    // قراءة القيم من query params أو استخدام القيم الافتراضية
+    const zone_id = parseInt(searchParams.get("zone_id")) || 1081313;
+    const subid1 = searchParams.get("subid1") || null;
+    const subid2 = searchParams.get("subid2") || "";
+
     const body = {
       event: "request",
-      zone_id: 1081313,
-      subid1: null,
-      subid2: "",
+      zone_id,
+      subid1,
+      subid2,
       ext_click_id: null,
       client_hints: {
         architecture: "",
@@ -26,7 +33,7 @@ export async function GET() {
       },
     };
 
-    const response = await fetch("https://push-sdk.com/event?z=1081313", {
+    const response = await fetch(`https://push-sdk.com/event?z=${zone_id}`, {
       method: "POST",
       headers: {
         "Content-Type": "text/plain;charset=UTF-8",
