@@ -1,68 +1,78 @@
-import axios from "axios";
+import { NextResponse } from "next/server";
+import * as cheerio from "cheerio";
 
 export async function GET(req) {
-  const start = Date.now();
-
   try {
-    const response = await axios.post(
-      "https://ar.savefrom.net/savefrom.php",
-      new URLSearchParams({
-        sf_url: "https://youtube.com/shorts/jfRceToZkLQ?si=I2FLPJaQrvR_gXP4",
-        sf_submit: "",
-        new: "2",
-        lang: "ar",
-        app: "",
-        country: "sy",
-        os: "Android",
-        browser: "Chrome",
-        channel: "main",
-      }),
-      {
-        headers: {
-          Host: "ar.savefrom.net",
-          Connection: "keep-alive",
-          "Cache-Control": "max-age=0",
-          "sec-ch-ua":
-            '"Chromium";v="140", "Not=A?Brand";v="24", "Android WebView";v="140"',
-          "sec-ch-ua-mobile": "?1",
-          "sec-ch-ua-platform": '"Android"',
-          Origin: "https://ar.savefrom.net",
-          "Upgrade-Insecure-Requests": "1",
-          "User-Agent":
-            "Mozilla/5.0 (Linux; Android 10; MAR-LX1A Build/HUAWEIMAR-L21MEB) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.7339.51 Mobile Safari/537.36",
-          Accept:
-            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-          "X-Requested-With": "mark.via.gp",
-          "Sec-Fetch-Site": "same-origin",
-          "Sec-Fetch-Mode": "navigate",
-          "Sec-Fetch-User": "?1",
-          "Sec-Fetch-Dest": "iframe",
-          Referer: "https://ar.savefrom.net/249Ex/",
-          "Accept-Encoding": "gzip, deflate, br, zstd",
-          "Accept-Language": "ar-SY,ar;q=0.9,en-SY;q=0.8,en-US;q=0.7,en;q=0.6",
+    const { searchParams } = new URL(req.url);
+    const url = searchParams.get("url");
+
+    if (!url) {
+      return NextResponse.json(
+        {
+          owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
+          code: 400,
+          msg: "يرجى اضافة رابط يوتيوب صالح",
         },
-      }
-    );
+        { status: 400 }
+      );
+    }
 
-    // النتيجة غالباً HTML مش JSON
-    const html = response.data;
+    const formData = new URLSearchParams({
+      sf_url: url,
+      sf_submit: "",
+      new: "2",
+      lang: "ar",
+      app: "",
+      country: "sy",
+      os: "Android",
+      browser: "Chrome",
+      channel: "main",
+    });
 
-    return Response.json({
-      owner: "Matuos-3mk",
-      code: 200,
-      msg: "success",
-      processed_time: `${Date.now() - start}ms`,
-      data: {
-        raw: html, // هذا هو HTML الخام
+    const response = await fetch("https://ar.savefrom.net/savefrom.php", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Origin": "https://ar.savefrom.net",
+        "Referer": "https://ar.savefrom.net/249Ex/",
+        "User-Agent":
+          "Mozilla/5.0 (Linux; Android 10; MAR-LX1A Build/HUAWEIMAR-L21MEB) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.7339.51 Mobile Safari/537.36",
       },
+      body: formData.toString(),
+    });
+
+    const html = await response.text();
+    const $ = cheerio.load(html);
+
+    // نحاول استخراج أول زر تحميل
+    const downloadLink = $("a.link-download[href]").attr("href");
+
+    if (!downloadLink) {
+      return NextResponse.json(
+        {
+          owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
+          code: 404,
+          msg: "لم يتم العثور على رابط تحميل",
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
+      code: 0,
+      msg: "success",
+      data: { link: downloadLink },
     });
   } catch (err) {
-    return Response.json({
-      owner: "Matuos-3mk",
-      code: 500,
-      msg: "failed",
-      processed_time: `${Date.now() - start}ms`,
-      error: err.message,
-    });
+    return NextResponse.json(
+      {
+        owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
+        code: 500,
+        msg: "Internal error",
+        error: err.message,
+      },
+      { status: 500 }
+    );
   }
-        }
+}
