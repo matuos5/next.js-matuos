@@ -9,7 +9,7 @@ export async function GET(req) {
     if (!url) {
       return NextResponse.json(
         {
-          owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
+          owner: "MATUOS3MK",
           code: 400,
           msg: "يرجى اضافة رابط يوتيوب صالح",
         },
@@ -50,7 +50,7 @@ export async function GET(req) {
     if (!downloadLink) {
       return NextResponse.json(
         {
-          owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
+          owner: "MATUOS3MK",
           code: 404,
           msg: "لم يتم العثور على رابط تحميل",
         },
@@ -59,7 +59,7 @@ export async function GET(req) {
     }
 
     return NextResponse.json({
-      owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
+      owner: "MATUOS3MK",
       code: 0,
       msg: "success",
       data: { link: downloadLink },
@@ -67,7 +67,7 @@ export async function GET(req) {
   } catch (err) {
     return NextResponse.json(
       {
-        owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
+        owner: "MATUOS3MK",
         code: 500,
         msg: "Internal error",
         error: err.message,
