@@ -1,40 +1,63 @@
 import { NextResponse } from "next/server";
 import axios from "axios";
-import * as cheerio from "cheerio";
+import fs from "fs";
+import path from "path";
 
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const query = searchParams.get("q");
+    const vid = searchParams.get("vid");
+    const token = searchParams.get("token");
 
-    if (!query) {
+    if (!vid || !token) {
       return NextResponse.json(
-        { owner: "MATUOS3MK", code: 400, msg: "يرجى إضافة اسم الأغنية أو كلمة منها" },
+        { owner: "MATUOS3MK", code: 400, msg: "يرجى إضافة vid و download_token" },
         { status: 400 }
       );
     }
 
-    const response = await axios.get(
-      "https://www.chosic.com/ar/%D8%A5%D9%8A%D8%AC%D8%A7%D8%AF-%D8%A7%D9%84%D8%A3%D8%BA%D8%A7%D9%86%D9%8A-%D9%85%D9%86-%D8%AE%D9%84%D8%A7%D9%84-%D8%A7%D9%84%D9%83%D9%84%D9%85%D8%A7%D8%AA/",
-      {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Linux; Android 10; MAR-LX1A Build/HUAWEIMAR-L21MEB) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.7339.51 Mobile Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
-        }
-      }
+    // تحديد اسم الملف المؤقت
+    const fileName = `anime_${vid}.mkv`;
+    const filePath = path.resolve(`./tmp/${fileName}`);
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+
+    // رابط تحميل الحلقة
+    const downloadUrl = `https://fs20.bowfile.com/token/download/dl/${vid}`;
+
+    // تحميل الحلقة مؤقتاً
+    const response = await axios.get(downloadUrl, {
+      params: { download_token: token },
+      responseType: "stream",
+      headers: {
+        Referer: "https://bowfile.com/",
+        "User-Agent":
+          "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36"
+      },
+      maxRedirects: 5,
+      timeout: 0
+    });
+
+    const writer = fs.createWriteStream(filePath);
+    response.data.pipe(writer);
+
+    await new Promise((resolve, reject) => {
+      writer.on("finish", resolve);
+      writer.on("error", reject);
+    });
+
+    return NextResponse.json({
+      owner: "MATUOS3MK",
+      code: 0,
+      msg: "تم تحميل الحلقة مؤقتًا",
+      data: { file: fileName, path: filePath }
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { owner: "MATUOS3MK", code: 500, msg: "Internal error", error: err.message },
+      { status: 500 }
     );
-
-    const html = response.data;
-    const $ = cheerio.load(html);
-
-    // البحث عن الأغاني التي تحتوي على الكلمة أو الاسم
-    const results = [];
-    $("a[href]").each((_, el) => {
-      const text = $(el).text();
-      const href = $(el).attr("href");
-      if (text && href && text.toLowerCase().includes(query.toLowerCase())) {
-        results.push({ title: text.trim(), link: href });
-      }
+  }
+}      }
     });
 
     if (!results.length) {
