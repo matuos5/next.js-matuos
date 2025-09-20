@@ -1,5 +1,6 @@
-// app/api/anime/route.js
+// ./app/api/anime/route.js
 import { NextResponse } from "next/server";
+import * as cheerio from "cheerio";
 import axios from "axios";
 
 export async function GET(req) {
@@ -12,7 +13,7 @@ export async function GET(req) {
         {
           owner: "matuos-3mk",
           code: 400,
-          msg: "يرجى اضافة كلمة بحث",
+          msg: "يرجى اضافة كلمة بحث صالحة",
         },
         { status: 400 }
       );
@@ -30,11 +31,42 @@ export async function GET(req) {
       },
     });
 
-    // استخراج حلقات الفيديو
-    const vidRegex = /watch\.php\?vid=([a-z0-9]+)/gi;
-    const titleRegex = /<a href="watch\.php\?vid=[a-z0-9]+".*?>(.*?)<\/a>/gi;
-
+    const $ = cheerio.load(searchResponse.data);
     const episodes = [];
+
+    // 2. استخراج حلقات البحث
+    $(".video-block").each((i, el) => {
+      const title = $(el).find("h3 a").text().trim();
+      const href = $(el).find("h3 a").attr("href");
+      const vidMatch = href ? href.match(/vid=([a-z0-9]+)/) : null;
+
+      if (vidMatch) {
+        episodes.push({
+          title,
+          vid: vidMatch[1],
+          download: null, // التحميل يحتاج سكرب آخر لكل فيديو
+        });
+      }
+    });
+
+    return NextResponse.json({
+      owner: "matuos-3mk",
+      code: 0,
+      msg: "success",
+      data: episodes,
+    });
+  } catch (err) {
+    return NextResponse.json(
+      {
+        owner: "matuos-3mk",
+        code: 500,
+        msg: "Internal error",
+        error: err.message,
+      },
+      { status: 500 }
+    );
+  }
+}    const episodes = [];
     let vidMatch;
     let titleMatch;
     while ((vidMatch = vidRegex.exec(searchResponse.data)) !== null) {
