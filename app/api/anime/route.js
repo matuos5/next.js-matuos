@@ -17,7 +17,7 @@ export async function GET(req) {
       );
     }
 
-    // اسم الملف المؤقت
+    // مجلد الملفات المؤقتة
     const tempDir = path.resolve("./tmp");
     if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
     const filePath = path.join(tempDir, `anime_${vid}.mkv`);
@@ -35,6 +35,31 @@ export async function GET(req) {
       },
     });
 
+    const writer = fs.createWriteStream(filePath);
+    response.data.pipe(writer);
+
+    // الانتظار حتى ينتهي التحميل
+    await new Promise((resolve, reject) => {
+      writer.on("finish", resolve);
+      writer.on("error", reject);
+    });
+
+    // إعادة JSON بمعلومات الحلقة
+    return NextResponse.json({
+      code: 0,
+      msg: "success",
+      data: {
+        vid,
+        download: filePath,
+      },
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { code: 500, msg: "خطأ داخلي", error: err.message },
+      { status: 500 }
+    );
+  }
+}
     const writer = fs.createWriteStream(filePath);
     response.data.pipe(writer);
 
