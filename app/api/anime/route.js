@@ -1,7 +1,5 @@
-// ./app/api/anime/route.js
 import { NextResponse } from "next/server";
-import axios from "axios";
-import * as cheerio from "cheerio";
+import puppeteer from "puppeteer";
 
 export async function GET(req) {
   try {
@@ -10,31 +8,65 @@ export async function GET(req) {
 
     if (!keyword) {
       return NextResponse.json(
-        {
-          owner: "matuos-3mk",
-          code: 400,
-          msg: "يرجى إضافة اسم الأنمي",
-        },
+        { owner: "matuos-3mk", code: 400, msg: "يرجى إضافة كلمة البحث" },
         { status: 400 }
       );
     }
 
-    // 1. البحث عن الأنمي
-    const searchRes = await axios.get("https://animezid.cam/search.php", {
-      params: { keywords: keyword, "video-id": "" },
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Linux; Android 10; MAR-LX1A) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.7339.51 Mobile Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-        Referer: "https://animezid.cam/",
-        Cookie: "PHPSESSID=2spf8d71h7p51lpn5v9838jpbe",
-      },
+    // تشغيل المتصفح
+    const browser = await puppeteer.launch({ headless: true });
+    const page = await browser.newPage();
+    await page.setUserAgent(
+      "Mozilla/5.0 (Linux; Android 10; MAR-LX1A) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.7339.51 Mobile Safari/537.36"
+    );
+
+    // 1️⃣ البحث
+    const searchUrl = `https://animezid.cam/search.php?keywords=${encodeURIComponent(keyword)}&video-id=`;
+    await page.goto(searchUrl, { waitUntil: "domcontentloaded" });
+
+    // جلب جميع الحلقات
+    const episodes = await page.evaluate(() => {
+      return Array.from(document.querySelectorAll("a[href*='watch.php?vid=']")).map(a => {
+        return {
+          title: a.textContent.trim(),
+          vid: new URL(a.href).searchParams.get("vid"),
+          download: null
+        };
+      });
     });
 
-    const $ = cheerio.load(searchRes.data);
+    // 2️⃣ الحصول على رابط التحميل لكل حلقة
+    for (let ep of episodes) {
+      try {
+        const watchUrl = `https://animezid.cam/watch.php?vid=${ep.vid}`;
+        await page.goto(watchUrl, { waitUntil: "domcontentloaded" });
 
-    // استخراج كل الـ vid من نتائج البحث
-    const results = [];
+        const downloadLink = await page.evaluate(() => {
+          const a = document.querySelector("a[href*='fs']");
+          return a ? a.href : null;
+        });
+
+        ep.download = downloadLink;
+      } catch (err) {
+        ep.download = null;
+      }
+    }
+
+    await browser.close();
+
+    return NextResponse.json({
+      owner: "matuos-3mk",
+      code: 0,
+      msg: "success",
+      data: episodes
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { owner: "matuos-3mk", code: 500, msg: "Internal error", error: err.message },
+      { status: 500 }
+    );
+  }
+}    const results = [];
     $("a").each((i, el) => {
       const href = $(el).attr("href");
       if (href && href.includes("watch.php?vid=")) {
