@@ -17,24 +17,43 @@ export async function GET(req) {
       );
     }
 
-    // مجلد الملفات المؤقتة
     const tempDir = path.resolve("./tmp");
     if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
     const filePath = path.join(tempDir, `anime_${vid}.mkv`);
 
-    // رابط التحميل النهائي
     const url = `https://fs20.bowfile.com/token/download/dl/${vid}/[AnimeZid.net]_Episode.mkv`;
 
-    // تحميل الحلقة مؤقتًا
     const response = await axios.get(url, {
       params: { download_token },
       responseType: "stream",
-      headers: {
-        "User-Agent": "Mozilla/5.0",
-        Accept: "*/*",
-      },
+      headers: { "User-Agent": "Mozilla/5.0", Accept: "*/*" },
     });
 
+    const writer = fs.createWriteStream(filePath);
+    response.data.pipe(writer);
+
+    // ننتظر انتهاء الكتابة قبل العودة
+    await new Promise((resolve, reject) => {
+      writer.on("finish", resolve);
+      writer.on("error", reject);
+    });
+
+    // الآن الـ return يكون مباشرة بعد await
+    return NextResponse.json({
+      code: 0,
+      msg: "success",
+      data: {
+        vid,
+        download: filePath,
+      },
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { code: 500, msg: "Internal error", error: err.message },
+      { status: 500 }
+    );
+  }
+}
     const writer = fs.createWriteStream(filePath);
     response.data.pipe(writer);
 
