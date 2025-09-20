@@ -1,241 +1,41 @@
-// ./app/api/anime/route.js
 import { NextResponse } from "next/server";
 import axios from "axios";
-import * as cheerio from "cheerio";
+import fs from "fs";
+import path from "path";
 
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const keyword = searchParams.get("keyword");
+    const vid = searchParams.get("vid");
+    const token = searchParams.get("token");
 
-    if (!keyword) {
-      return NextResponse.json(
-        {
-          owner: "matuos-3mk",
-          code: 400,
-          msg: "يرجى إضافة كلمة بحث صالحة",
-        },
-        { status: 400 }
-      );
+    if (!vid || !token) {
+      return NextResponse.json({ code: 400, msg: "vid و token مطلوبان" }, { status: 400 });
     }
 
-    // 1. البحث عن الأنمي
-    const searchResponse = await axios.get("https://animezid.cam/search.php", {
-      params: { keywords: keyword, "video-id": "" },
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Linux; Android 10; MAR-LX1A) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.7339.51 Mobile Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        Referer: "https://animezid.cam/",
-        Cookie: "PHPSESSID=2spf8d71h7p51lpn5v9838jpbe",
-      },
+    const fileName = `anime_${vid}.mkv`;
+    const filePath = path.resolve(`./tmp/${fileName}`);
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+
+    const downloadUrl = `https://fs20.bowfile.com/token/download/dl/${vid}`;
+
+    const response = await axios.get(downloadUrl, {
+      params: { download_token: token },
+      responseType: "stream",
+      headers: { Referer: "https://bowfile.com/", "User-Agent": "Mozilla/5.0" },
     });
 
-    const $ = cheerio.load(searchResponse.data);
-
-    // 2. استخراج حلقات الأنمي
-    const episodes = [];
-    $("a[href*='watch.php?vid=']").each((i, el) => {
-      const href = $(el).attr("href");
-      const title = $(el).text().trim() || "Unknown";
-      const vidMatch = href.match(/vid=([a-z0-9]+)/i);
-      if (vidMatch) {
-        episodes.push({ title, vid: vidMatch[1], download: null });
-      }
-    });
-
-    if (episodes.length === 0) {
-      return NextResponse.json(
-        {
-          owner: "matuos-3mk",
-          code: 404,
-          msg: "لم يتم العثور على حلقات للأنمي",
-        },
-        { status: 404 }
-      );
-    }
-
-    // 3. إرجاع نتائج البحث
-    return NextResponse.json({
-      owner: "matuos-3mk",
-      code: 0,
-      msg: "success",
-      data: episodes
-    });
-
-  } catch (err) {
-    return NextResponse.json(
-      {
-        owner: "matuos-3mk",
-        code: 500,
-        msg: "Internal error",
-        error: err.message,
-      },
-      { status: 500 }
-    );
-  }
-}
-    // استخراج قائمة الحلقات من نتائج البحث
-    $('a[href*="watch.php?vid="]').each((i, el) => {
-      const title = $(el).text().trim() || "Unknown";
-      const vidMatch = $(el).attr('href').match(/vid=([a-z0-9]+)/i);
-      if (vidMatch) {
-        episodes.push({
-          title,
-          vid: vidMatch[1],
-          download: null
-        });
-      }
-    });
-
-    if (!episodes.length) {
-      return NextResponse.json({
-        owner: "matuos-3mk",
-        code: 404,
-        msg: "لم يتم العثور على حلقات للأنمي",
-      }, { status: 404 });
-    }
-
-    // 2️⃣ تحميل الحلقة الأولى مؤقتاً
-    const firstEpisode = episodes[0];
-
-    const videoPage = await axios.get('https://animezid.cam/watch.php', {
-      params: { vid: firstEpisode.vid },
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; MAR-LX1A) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.7339.51 Mobile Safari/537.36',
-        'Referer': 'https://animezid.cam/',
-      }
-    });
-
-    const downloadMatch = videoPage.data.match(/https:\/\/fs\d+\.koramaup\.com\/.*?\.mkv\?download_token=[a-z0-9]+/i);
-    if (!downloadMatch) throw new Error('رابط التحميل المباشر لم يتم العثور عليه');
-    const downloadUrl = downloadMatch[0];
-
-    // تحميل الحلقة مؤقتاً
-    const tempPath = path.resolve(`./temp_${firstEpisode.vid}.mkv`);
-    const writer = fs.createWriteStream(tempPath);
-    const downloadResponse = await axios.get(downloadUrl, { responseType: 'stream' });
-    downloadResponse.data.pipe(writer);
+    const writer = fs.createWriteStream(filePath);
+    response.data.pipe(writer);
 
     await new Promise((resolve, reject) => {
-      writer.on('finish', resolve);
-      writer.on('error', reject);
+      writer.on("finish", resolve);
+      writer.on("error", reject);
     });
 
-    // 3️⃣ إرسال الحلقة عبر واتساب عن طريق البوت Node.js
-    // ⚠️ هذا الجزء يفترض أن البوت جاهز للاستلام من هذا الملف المؤقت
-    // مثال إرسال: (يتم تنفيذ الدالة من سكربت البوت)
-    // await sendEpisode(chatId, tempPath);
-
-    // بعد الإرسال يمكنك حذف الملف المؤقت
-    fs.unlinkSync(tempPath);
-
-    return NextResponse.json({
-      owner: "matuos-3mk",
-      code: 0,
-      msg: "success",
-      data: episodes
-    });
+    return NextResponse.json({ code: 0, msg: "تم تحميل الحلقة", file: fileName });
 
   } catch (err) {
-    return NextResponse.json({
-      owner: "matuos-3mk",
-      code: 500,
-      msg: "Internal error",
-      error: err.message
-    }, { status: 500 });
-  }
-      }    $(".video-block").each((i, el) => {
-      const title = $(el).find("h3 a").text().trim();
-      const href = $(el).find("h3 a").attr("href");
-      const vidMatch = href ? href.match(/vid=([a-z0-9]+)/) : null;
-
-      if (vidMatch) {
-        episodes.push({
-          title,
-          vid: vidMatch[1],
-          download: null,
-        });
-      }
-    });
-
-    return NextResponse.json({
-      owner: "matuos-3mk",
-      code: 0,
-      msg: "success",
-      data: episodes,
-    });
-
-  } catch (err) {
-    return NextResponse.json(
-      {
-        owner: "matuos-3mk",
-        code: 500,
-        msg: "Internal error",
-        error: err.message,
-      },
-      { status: 500 }
-    );
-  }
-  }    // 2. استخراج حلقات البحث
-    $(".video-block").each((i, el) => {
-      const title = $(el).find("h3 a").text().trim();
-      const href = $(el).find("h3 a").attr("href");
-      const vidMatch = href ? href.match(/vid=([a-z0-9]+)/) : null;
-
-      if (vidMatch) {
-        episodes.push({
-          title,
-          vid: vidMatch[1],
-          download: null, // التحميل يحتاج سكرب آخر لكل فيديو
-        });
-      }
-    });
-
-    return NextResponse.json({
-      owner: "matuos-3mk",
-      code: 0,
-      msg: "success",
-      data: episodes,
-    });
-  } catch (err) {
-    return NextResponse.json(
-      {
-        owner: "matuos-3mk",
-        code: 500,
-        msg: "Internal error",
-        error: err.message,
-      },
-      { status: 500 }
-    );
-  }
-}    const episodes = [];
-    let vidMatch;
-    let titleMatch;
-    while ((vidMatch = vidRegex.exec(searchResponse.data)) !== null) {
-      titleMatch = titleRegex.exec(searchResponse.data);
-      episodes.push({
-        title: titleMatch ? titleMatch[1].trim() : "Unknown",
-        vid: vidMatch[1],
-        download: null,
-      });
-    }
-
-    return NextResponse.json({
-      owner: "matuos-3mk",
-      code: 0,
-      msg: "success",
-      data: episodes,
-    });
-  } catch (err) {
-    return NextResponse.json(
-      {
-        owner: "matuos-3mk",
-        code: 500,
-        msg: "Internal error",
-        error: err.message,
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ code: 500, msg: "خطأ داخلي", error: err.message }, { status: 500 });
   }
 }
