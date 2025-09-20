@@ -2,39 +2,79 @@
 import { NextResponse } from "next/server";
 import axios from "axios";
 import * as cheerio from "cheerio";
-import fs from "fs";
-import path from "path";
-
-// ⚠️ ملاحظة: تأكد من أن البوت موجود ويعمل منفصلاً لاستقبال ملفات التحميل
-// بوت Node.js يتحمل إرسال الفيديو على واتساب
 
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const keyword = searchParams.get("keyword");
-    const chatId = searchParams.get("chatId"); // رقم واتساب المستقبل
 
-    if (!keyword || !chatId) {
-      return NextResponse.json({
-        owner: "matuos-3mk",
-        code: 400,
-        msg: "يرجى إضافة كلمة بحث ورقم واتساب صالح",
-      }, { status: 400 });
+    if (!keyword) {
+      return NextResponse.json(
+        {
+          owner: "matuos-3mk",
+          code: 400,
+          msg: "يرجى إضافة كلمة بحث صالحة",
+        },
+        { status: 400 }
+      );
     }
 
-    // 1️⃣ البحث عن الانمي
-    const searchRes = await axios.get('https://animezid.cam/search.php', {
-      params: { keywords: keyword, 'video-id': '' },
+    // 1. البحث عن الأنمي
+    const searchResponse = await axios.get("https://animezid.cam/search.php", {
+      params: { keywords: keyword, "video-id": "" },
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; MAR-LX1A) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.7339.51 Mobile Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'Referer': 'https://animezid.cam/',
+        "User-Agent":
+          "Mozilla/5.0 (Linux; Android 10; MAR-LX1A) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.7339.51 Mobile Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        Referer: "https://animezid.cam/",
+        Cookie: "PHPSESSID=2spf8d71h7p51lpn5v9838jpbe",
+      },
+    });
+
+    const $ = cheerio.load(searchResponse.data);
+
+    // 2. استخراج حلقات الأنمي
+    const episodes = [];
+    $("a[href*='watch.php?vid=']").each((i, el) => {
+      const href = $(el).attr("href");
+      const title = $(el).text().trim() || "Unknown";
+      const vidMatch = href.match(/vid=([a-z0-9]+)/i);
+      if (vidMatch) {
+        episodes.push({ title, vid: vidMatch[1], download: null });
       }
     });
 
-    const $ = cheerio.load(searchRes.data);
-    const episodes = [];
+    if (episodes.length === 0) {
+      return NextResponse.json(
+        {
+          owner: "matuos-3mk",
+          code: 404,
+          msg: "لم يتم العثور على حلقات للأنمي",
+        },
+        { status: 404 }
+      );
+    }
 
+    // 3. إرجاع نتائج البحث
+    return NextResponse.json({
+      owner: "matuos-3mk",
+      code: 0,
+      msg: "success",
+      data: episodes
+    });
+
+  } catch (err) {
+    return NextResponse.json(
+      {
+        owner: "matuos-3mk",
+        code: 500,
+        msg: "Internal error",
+        error: err.message,
+      },
+      { status: 500 }
+    );
+  }
+}
     // استخراج قائمة الحلقات من نتائج البحث
     $('a[href*="watch.php?vid="]').each((i, el) => {
       const title = $(el).text().trim() || "Unknown";
