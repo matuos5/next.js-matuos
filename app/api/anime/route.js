@@ -17,7 +17,7 @@ export async function GET(req) {
       );
     }
 
-    // لو حابب فقط تختبر الرابط بدون الحاجة لاستخدام الاستجابة
+    // طلب وهمي للتأكد أن الرابط يشتغل
     await fetch(url, {
       method: "GET",
       headers: {
@@ -36,28 +36,6 @@ export async function GET(req) {
         "Accept-Language": "ar-SY,ar;q=0.9",
         Referer: "https://www.mp4upload.com/",
         "Accept-Encoding": "gzip, deflate, br, zstd",
-      },
-    });
-
-    // إعادة رابط التحميل مباشرة
-    return NextResponse.json({
-      owner: "MATUOS-3MK",
-      code: 0,
-      msg: "success",
-      data: { link: url },
-    });
-  } catch (err) {
-    return NextResponse.json(
-      {
-        owner: "MATUOS-3MK",
-        code: 500,
-        msg: "Internal error",
-        error: err.message,
-      },
-      { status: 500 }
-    );
-  }
-}        "Accept-Encoding": "gzip, deflate, br, zstd",
       },
     });
 
