@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
 
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const url = searchParams.get("url");
 
+    // إذا كان الرابط غير موجود، يتم الرد برسالة خطأ
     if (!url) {
       return NextResponse.json(
         {
@@ -35,6 +36,29 @@ export async function GET(req) {
       );
     }
 
+    const videoLink = match[1];
+
+    // 3- إرجاع الرابط المباشر للفيديو
+    return NextResponse.json({
+      owner: "MATUOS-3MK",
+      code: 0,
+      msg: "success",
+      data: { link: videoLink },
+    });
+
+  } catch (err) {
+    // في حالة حدوث خطأ داخل الـ try
+    return NextResponse.json(
+      {
+        owner: "MATUOS-3MK",
+        code: 500,
+        msg: "حدث خطأ داخلي",
+        error: err.message,
+      },
+      { status: 500 }
+    );
+  }
+}
     const videoLink = match[1];
 
     // 3- إرجاع الرابط المباشر للفيديو
