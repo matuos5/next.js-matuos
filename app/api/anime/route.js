@@ -27,14 +27,75 @@ async function safeFetchText(url, opts = {}) {
   }
 }
 
-function extractCandidatesFromHtml(html, baseUrl) {
-  const $ = cheerio.load(html || "");
-  const set = new Set();
+export async function GET(req) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const name = searchParams.get("name");
+    const episode = searchParams.get("episode");
 
-  // a[href]
-  $("a[href]").each((i, el) => {
-    let href = $(el).attr("href");
-    if (!href) return;
+    if (!name || !episode) {
+      return NextResponse.json(
+        {
+          owner: "matuos",
+          code: 400,
+          msg: "الرجاء ادخال اسم الانمي ورقم الحلقة",
+        },
+        { status: 400 }
+      );
+    }
+
+    const searchUrl = `https://anime3rb.com/?s=${encodeURIComponent(`${name} ${episode}`)}`;
+    const searchRes = await safeFetchText(searchUrl);
+    if (!searchRes || searchRes.error) {
+      return NextResponse.json(
+        { owner: "matuos", code: 500, msg: "فشل جلب نتائج البحث", error: searchRes && searchRes.error },
+        { status: 500 }
+      );
+    }
+
+    const $search = cheerio.load(searchRes.text);
+    const firstLink = $search("a").attr("href");
+
+    if (!firstLink) {
+      return NextResponse.json(
+        { owner: "matuos", code: 404, msg: "لم يتم العثور على الحلقة" },
+        { status: 404 }
+      );
+    }
+
+    const epRes = await safeFetchText(firstLink);
+    if (!epRes || epRes.error) {
+      return NextResponse.json(
+        { owner: "matuos", code: 500, msg: "فشل جلب صفحة الحلقة", error: epRes && epRes.error },
+        { status: 500 }
+      );
+    }
+
+    const $ep = cheerio.load(epRes.text);
+    const downloadLinks = $ep("a.btn-success")
+      .map((i, el) => $ep(el).attr("href"))
+      .get();
+
+    if (!downloadLinks.length) {
+      return NextResponse.json(
+        { owner: "matuos", code: 404, msg: "لم يتم العثور على روابط تحميل" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      owner: "matuos",
+      code: 0,
+      msg: "success",
+      data: downloadLinks,
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { owner: "matuos", code: 500, msg: "Internal error", error: err.message },
+      { status: 500 }
+    );
+  }
+}    if (!href) return;
     try {
       href = new URL(href, baseUrl).toString();
     } catch (e) {
