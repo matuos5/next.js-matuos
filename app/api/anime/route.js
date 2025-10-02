@@ -16,11 +16,11 @@ export async function GET(req) {
       );
     }
 
-    // 1- نجيب HTML الخاص بالصفحة
+    // 1- جلب HTML الخاص بالصفحة
     const res = await fetch(url);
     const html = await res.text();
 
-    // 2- نبحث عن رابط الفيديو داخل الكود
+    // 2- البحث عن رابط الفيديو داخل الكود
     const regex = /player\.src\(\{[^}]*src:\s*"([^"]*\.mp4)"/;
     const match = html.match(regex);
 
@@ -35,6 +35,28 @@ export async function GET(req) {
       );
     }
 
+    const videoLink = match[1];
+
+    // 3- إرجاع الرابط المباشر للفيديو
+    return NextResponse.json({
+      owner: "MATUOS-3MK",
+      code: 0,
+      msg: "success",
+      data: { link: videoLink },
+    });
+  } catch (err) {
+    // 4- معالجة الأخطاء
+    return NextResponse.json(
+      {
+        owner: "MATUOS-3MK",
+        code: 500,
+        msg: "Internal error",
+        error: err.message,
+      },
+      { status: 500 }
+    );
+  }
+}
     const videoLink = match[1];
 
     // 3- نرجع الرابط المباشر للفيديو
