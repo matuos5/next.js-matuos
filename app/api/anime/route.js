@@ -1,16 +1,6 @@
-// app/api/scrape/route.js
+// app/api/anime/route.js
 import { NextResponse } from "next/server";
 import * as cheerio from "cheerio";
-
-/**
- * GET /api/scrape?url=...   OR
- * GET /api/scrape?source=koramaup&pt=...
- *
- * Response JSON:
- * { owner, code, msg, data: { candidates: [], verified: [{url, method, info}] } }
- *
- * Note: this endpoint only *verifies* links (HEAD / Range check). It does NOT download full videos.
- */
 
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -35,6 +25,164 @@ async function safeFetchText(url, opts = {}) {
     clearTimeout(id);
     return { error: err.message || String(err) };
   }
+}
+
+function extractCandidatesFromHtml(html, baseUrl) {
+  const $ = cheerio.load(html || "");
+  const set = new Set();
+
+  // a[href]
+  $("a[href]").each((i, el) => {
+    let href = $(el).attr("href");
+    if (!href) return;
+    try {
+      href = new URL(href, baseUrl).toString();
+    } catch (e) {
+      // leave as-is
+    }
+    set.add(href);
+  });
+
+  // data attributes
+  $("[data-href],[data-url],[data-download]").each((i, el) => {
+    const a = $(el).attr("data-href") || $(el).attr("data-url") || $(el).attr("data-download");
+    if (!a) return;
+    try {
+      set.add(new URL(a, baseUrl).toString());
+    } catch (e) {
+      set.add(a);
+    }
+  });
+
+  // search inside scripts for URLs
+  const scripts = $("script").map((i, s) => $(s).html()).get().join("\n");
+  const re = /(https?:\/\/[^\s'"]{20,400})/g;
+  let m;
+  while ((m = re.exec(scripts)) !== null) {
+    set.add(m[1]);
+  }
+
+  return Array.from(set);
+}
+
+/** Check if link is MP4 by HEAD (content-type) or by Range (ftyp) */
+async function verifyLinkIsMp4(url) {
+  try {
+    // HEAD
+    const headRes = await fetch(url, {
+      method: "HEAD",
+      headers: { "User-Agent": USER_AGENT, Accept: "*/*" },
+      redirect: "follow",
+    });
+    const ctype = headRes.headers.get("content-type") || "";
+    if (/video\/|application\/octet-stream|audio\//i.test(ctype) && /mp4|video/i.test(ctype)) {
+      return { ok: true, method: "head-content-type", info: { status: headRes.status, contentType: ctype } };
+    }
+  } catch (e) {
+    // ignore HEAD errors
+  }
+
+  // Range GET: read first bytes and look for 'ftyp'
+  try {
+    const rangeRes = await fetch(url, {
+      method: "GET",
+      headers: { "User-Agent": USER_AGENT, Range: "bytes=0-8191", Accept: "*/*" },
+      redirect: "follow",
+    });
+
+    if (!rangeRes.ok && rangeRes.status !== 206 && rangeRes.status !== 200) {
+      return { ok: false, method: "range-error-status", info: { status: rangeRes.status } };
+    }
+
+    const ab = await rangeRes.arrayBuffer();
+    const buf = new Uint8Array(ab);
+    const decoder = new TextDecoder("utf-8", { fatal: false });
+    const headText = decoder.decode(buf.subarray(0, Math.min(1024, buf.length)));
+    if (headText.includes("ftyp")) {
+      return { ok: true, method: "range-ftyp", info: { status: rangeRes.status } };
+    }
+
+    const ctype2 = rangeRes.headers.get("content-type") || "";
+    if (/video\/|mp4/i.test(ctype2)) {
+      return { ok: true, method: "range-content-type", info: { status: rangeRes.status, contentType: ctype2 } };
+    }
+
+    return { ok: false, method: "no-evidence", info: { status: rangeRes.status, snippet: headText.slice(0, 300) } };
+  } catch (err) {
+    return { ok: false, method: "error", message: err.message || String(err) };
+  }
+}
+
+export async function GET(req) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const name = searchParams.get("name");
+    const episode = searchParams.get("episode");
+
+    if (!name || !episode) {
+      return NextResponse.json(
+        {
+          owner: "matuos",
+          code: 400,
+          msg: "الرجاء ادخال اسم الانمي ورقم الحلقة",
+        },
+        { status: 400 }
+      );
+    }
+
+    // ابحث في anime3rb كمثال
+    const searchUrl = `https://anime3rb.com/?s=${encodeURIComponent(`${name} ${episode}`)}`;
+    const searchRes = await safeFetchText(searchUrl);
+    if (!searchRes || searchRes.error) {
+      return NextResponse.json(
+        { owner: "matuos", code: 500, msg: "فشل جلب نتائج البحث", error: searchRes && searchRes.error },
+        { status: 500 }
+      );
+    }
+
+    const $search = cheerio.load(searchRes.text);
+    const firstLink = $search("a").attr("href");
+
+    if (!firstLink) {
+      return NextResponse.json(
+        { owner: "matuos", code: 404, msg: "لم يتم العثور على الحلقة" },
+        { status: 404 }
+      );
+    }
+
+    const epRes = await safeFetchText(firstLink);
+    if (!epRes || epRes.error) {
+      return NextResponse.json(
+        { owner: "matuos", code: 500, msg: "فشل جلب صفحة الحلقة", error: epRes && epRes.error },
+        { status: 500 }
+      );
+    }
+
+    const $ep = cheerio.load(epRes.text);
+    const downloadLinks = $ep("a.btn-success")
+      .map((i, el) => $ep(el).attr("href"))
+      .get();
+
+    if (!downloadLinks.length) {
+      return NextResponse.json(
+        { owner: "matuos", code: 404, msg: "لم يتم العثور على روابط تحميل" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      owner: "matuos",
+      code: 0,
+      msg: "success",
+      data: downloadLinks,
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { owner: "matuos", code: 500, msg: "Internal error", error: err.message },
+      { status: 500 }
+    );
+  }
+                }  }
 }
 
 function extractCandidatesFromHtml(html, baseUrl) {
