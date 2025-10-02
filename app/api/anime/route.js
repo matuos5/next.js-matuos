@@ -19,7 +19,7 @@ export async function GET(req) {
       );
     }
 
-    // 1️⃣ البحث عن الحلقة في الموقع
+    // 1️⃣ البحث في الموقع باستخدام اسم الانمي ورقم الحلقة
     const searchUrl = `https://animezid.cam/?s=${encodeURIComponent(
       `${name} ${episode}`
     )}`;
@@ -32,7 +32,7 @@ export async function GET(req) {
     const searchHtml = await searchRes.text();
     const $search = cheerio.load(searchHtml);
 
-    // نفترض أن أول رابط هو الحلقة المطلوبة
+    // نفترض أن أول رابط هو الصفحة المطلوبة
     const firstLink = $search("a").attr("href");
     if (!firstLink) {
       return NextResponse.json(
@@ -86,12 +86,16 @@ export async function GET(req) {
       );
     }
 
-    return NextResponse.json({
-      owner: "MATUOS-3MK",
-      code: 0,
-      msg: "success",
-      data: found,
-    });
+    // 4️⃣ إرجاع الروابط في JSON
+    return NextResponse.json(
+      {
+        owner: "MATUOS-3MK",
+        code: 0,
+        msg: "success",
+        data: found,
+      },
+      { status: 200 }
+    );
   } catch (err) {
     return NextResponse.json(
       {
@@ -103,31 +107,4 @@ export async function GET(req) {
       { status: 500 }
     );
   }
-}      return NextResponse.json(
-        {
-          owner: "MATUOS-3MK",
-          code: 404,
-          msg: "لم يتم العثور على روابط تحميل",
-        },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      owner: "MATUOS-3MK",
-      code: 0,
-      msg: "success",
-      data: downloadLinks,
-    });
-  } catch (err) {
-    return NextResponse.json(
-      {
-        owner: "MATUOS-3MK",
-        code: 500,
-        msg: "Internal error",
-        error: err.message,
-      },
-      { status: 500 }
-    );
-  }
-}
+      }
