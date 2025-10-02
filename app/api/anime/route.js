@@ -1,26 +1,26 @@
-// app/api/download/route.js
+// app/api/anime/route.js
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import axios from "axios";
 
 export async function GET(req) {
+  const { searchParams } = new URL(req.url);
+  const url = searchParams.get("url");
+
+  if (!url) {
+    return NextResponse.json(
+      {
+        owner: "MATUOS-3MK",
+        code: 400,
+        msg: "يرجى اضافة رابط صالح للحلقة",
+      },
+      { status: 400 }
+    );
+  }
+
   try {
-    const { searchParams } = new URL(req.url);
-    const url = searchParams.get("url");
-
-    if (!url) {
-      return NextResponse.json(
-        {
-          owner: "MATUOS-3MK",
-          code: 400,
-          msg: "يرجى اضافة رابط صالح للحلقة",
-        },
-        { status: 400 }
-      );
-    }
-
-    // اسم الملف المحلي من الرابط
+    // اسم الملف من الرابط
     const fileName = url.split("/").pop();
     const outputPath = path.resolve("./", fileName);
 
@@ -35,6 +35,47 @@ export async function GET(req) {
         'sec-ch-ua-platform': '"Android"',
         'Upgrade-Insecure-Requests': '1',
         'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Sec-GPC': '1',
+        'Accept-Language': 'ar-SY,ar;q=0.9',
+        'Sec-Fetch-Site': 'same-site',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-User': '?1',
+        'Sec-Fetch-Dest': 'document',
+        'Referer': 'https://www.mp4upload.com/',
+        'Accept-Encoding': 'gzip, deflate, br, zstd',
+      },
+    });
+
+    const writer = fs.createWriteStream(outputPath);
+    response.data.pipe(writer);
+
+    await new Promise((resolve, reject) => {
+      writer.on("finish", resolve);
+      writer.on("error", reject);
+    });
+
+    return NextResponse.json(
+      {
+        owner: "MATUOS-3MK",
+        code: 0,
+        msg: "Download completed successfully",
+        data: { file: outputPath },
+      },
+      { status: 200 }
+    );
+  } catch (err) {
+    return NextResponse.json(
+      {
+        owner: "MATUOS-3MK",
+        code: 500,
+        msg: "Internal error",
+        error: err.message,
+      },
+      { status: 500 }
+    );
+  }
+}        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
         'Sec-GPC': '1',
         'Accept-Language': 'ar-SY,ar;q=0.9',
