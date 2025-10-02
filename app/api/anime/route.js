@@ -1,40 +1,79 @@
-// app/api/animezid/route.js
+// app/api/download/route.js
 import { NextResponse } from "next/server";
-import * as cheerio from "cheerio";
+import fs from "fs";
+import path from "path";
+import axios from "axios";
 
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const name = searchParams.get("name");
-    const episode = searchParams.get("episode");
+    const url = searchParams.get("url");
 
-    if (!name || !episode) {
+    if (!url) {
       return NextResponse.json(
         {
           owner: "MATUOS-3MK",
           code: 400,
-          msg: "الرجاء ادخال اسم الانمي ورقم الحلقة",
+          msg: "يرجى اضافة رابط صالح للحلقة",
         },
         { status: 400 }
       );
     }
 
-    // 1️⃣ البحث عن الحلقة في الموقع
-    const searchUrl = `https://animezid.cam/?s=${encodeURIComponent(
-      `${name} ${episode}`
-    )}`;
+    // اسم الملف المحلي من الرابط
+    const fileName = url.split("/").pop();
+    const outputPath = path.resolve("./", fileName);
 
-    const searchRes = await fetch(searchUrl, {
+    const response = await axios.get(url, {
+      responseType: "stream",
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        'Host': 'a1.mp4upload.com:183',
+        'Connection': 'keep-alive',
+        'Cache-Control': 'max-age=0',
+        'sec-ch-ua': '"Not;A=Brand";v="99", "Brave";v="139", "Chromium";v="139"',
+        'sec-ch-ua-mobile': '?1',
+        'sec-ch-ua-platform': '"Android"',
+        'Upgrade-Insecure-Requests': '1',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Sec-GPC': '1',
+        'Accept-Language': 'ar-SY,ar;q=0.9',
+        'Sec-Fetch-Site': 'same-site',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-User': '?1',
+        'Sec-Fetch-Dest': 'document',
+        'Referer': 'https://www.mp4upload.com/',
+        'Accept-Encoding': 'gzip, deflate, br, zstd',
       },
     });
 
-    const searchHtml = await searchRes.text();
-    const $search = cheerio.load(searchHtml);
+    const writer = fs.createWriteStream(outputPath);
+    response.data.pipe(writer);
 
-    // نفترض أن أول رابط هو الحلقة المطلوبة
+    await new Promise((resolve, reject) => {
+      writer.on("finish", resolve);
+      writer.on("error", reject);
+    });
+
+    return NextResponse.json({
+      owner: "MATUOS-3MK",
+      code: 0,
+      msg: "Download completed successfully",
+      data: { file: outputPath },
+    });
+
+  } catch (err) {
+    return NextResponse.json(
+      {
+        owner: "MATUOS-3MK",
+        code: 500,
+        msg: "Internal error",
+        error: err.message,
+      },
+      { status: 500 }
+    );
+  }
+}    // نفترض أن أول رابط هو الحلقة المطلوبة
     const firstLink = $search("a").attr("href");
     if (!firstLink) {
       return NextResponse.json(
