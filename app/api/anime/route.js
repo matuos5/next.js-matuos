@@ -1,40 +1,80 @@
-// app/api/push-event/route.js
+// app/api/anime/route.js
 import { NextResponse } from "next/server";
-import axios from 'axios';
-import fs from 'fs';
-import path from 'path';
 
 export async function GET(req) {
   try {
-    // استخراج معلمات الـ query من الـ URL
     const { searchParams } = new URL(req.url);
-    const animeName = searchParams.get("anime_name") || "One Piece"; // اسم الأنمي
-    const episodeNumber = parseInt(searchParams.get("episode_number")) || 1145; // رقم الحلقة
 
-    // إنشاء رابط الحلقة بناءً على اسم الأنمي ورقم الحلقة
-    const episodeURL = getEpisodeURL(animeName, episodeNumber);
-    
-    if (!episodeURL) {
-      return NextResponse.json({
-        owner: "MATUOS-3MK",
-        code: 404,
-        msg: "رابط الحلقة غير صحيح أو غير متوفر.",
-      });
-    }
+    // قراءة القيم من query params أو استخدام القيم الافتراضية
+    const zone_id = parseInt(searchParams.get("zone_id")) || 1081313;
+    const subid1 = searchParams.get("subid1") || null;
+    const subid2 = searchParams.get("subid2") || "";
 
-    // تحديد اسم الملف بناءً على الحلقة
-    const filename = `${animeName} - الحلقة ${episodeNumber}.mp4`;
-    const filePath = path.resolve(__dirname, filename);
+    const body = {
+      event: "request",
+      zone_id,
+      subid1,
+      subid2,
+      ext_click_id: null,
+      client_hints: {
+        architecture: "",
+        bitness: "",
+        brands: [
+          { brand: "Not;A=Brand", version: "99" },
+          { brand: "Android WebView", version: "139" },
+          { brand: "Chromium", version: "139" },
+        ],
+        full_version_list: [],
+        mobile: true,
+        model: "",
+        platform: "Android",
+        platform_version: "",
+        wow64: false,
+      },
+    };
 
-    // ترويسات الطلب
-    const headers = {
-      'Host': 'a3.mp4upload.com:183',
-      'Connection': 'keep-alive',
-      'Cache-Control': 'max-age=0',
-      'sec-ch-ua': '"Not;A=Brand";v="99", "Brave";v="139", "Chromium";v="139"',
-      'sec-ch-ua-mobile': '?1',
-      'sec-ch-ua-platform': '"Android"',
-      'Upgrade-Insecure-Requests': '1',
+    const response = await fetch(`https://push-sdk.com/event?z=${zone_id}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=UTF-8",
+        "sec-ch-ua": `"Not;A=Brand";v="99", "Android WebView";v="139", "Chromium";v="139"`,
+        "sec-ch-ua-platform": '"Android"',
+        "sec-ch-ua-mobile": "?1",
+        "User-Agent":
+          "Mozilla/5.0 (Linux; Android 12; M2007J20CG Build/SKQ1.211019.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.7258.160 Mobile Safari/537.36",
+        "Origin": "https://en.loader.to",
+        "X-Requested-With": "mark.via.gp",
+        "Referer": "https://en.loader.to/",
+        "Accept": "*/*",
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.text();
+
+    return NextResponse.json({
+      owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
+      code: 0,
+      msg: "success",
+      data: { raw: data },
+    });
+  } catch (err) {
+    return NextResponse.json(
+      {
+        owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
+        code: 500,
+        msg: "Internal error",
+        data: { error: err.message },
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// الكود الذي فيه المشكلة كان يبدو هكذا، فتم تعديل الأقواس فيه:
+} else {
+  return null;
+        }      'Upgrade-Insecure-Requests': '1',
       'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36',
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
       'Sec-GPC': '1',
