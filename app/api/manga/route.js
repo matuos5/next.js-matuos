@@ -37,6 +37,39 @@ export async function GET(req) {
 
     const html = await response.text();
     const $ = cheerio.load(html);
+    const downloadLink = $("#button-download-ready a").attr("href");
+
+    if (!downloadLink) {
+      return NextResponse.json(
+        {
+          owner: "MATUOS-3MK",
+          code: 404,
+          msg: "No download link found",
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      owner: "MATUOS-3MK",
+      code: 0,
+      msg: "success",
+      data: { link: downloadLink },
+    });
+  } catch (err) {
+    return NextResponse.json(
+      {
+        owner: "MATUOS-3MK",
+        code: 500,
+        msg: "Internal error",
+        error: err.message,
+      },
+      { status: 500 }
+    );
+  }
+}
+    const html = await response.text();
+    const $ = cheerio.load(html);
 
     const downloadLink = $("#button-download-ready a").attr("href");
 
