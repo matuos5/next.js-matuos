@@ -1,4 +1,4 @@
-// app/api/manga/route.js
+// app/api/anime/route.js
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -35,6 +35,30 @@ export async function GET() {
           code: response.status,
           msg: "فشل في جلب البيانات من onma.top",
         },
+        { status: response.status }
+      );
+    }
+
+    const data = await response.json();
+
+    return NextResponse.json({
+      owner: "MATUOS-3MK",
+      code: 0,
+      msg: "success",
+      data,
+    });
+  } catch (err) {
+    return NextResponse.json(
+      {
+        owner: "MATUOS-3MK",
+        code: 500,
+        msg: "Internal Server Error",
+        error: err.message,
+      },
+      { status: 500 }
+    );
+  }
+}        },
         { status: response.status }
       );
     }
