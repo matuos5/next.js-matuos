@@ -1,19 +1,21 @@
 import { NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 
-export async function GET(req) {
+export async function GET(request) {
   try {
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(request.url);
     const url = searchParams.get("url");
 
     if (!url) {
       return NextResponse.json(
-        { owner: "MATUOS-3MK", code: 400, msg: "يرجى اضافة رابط تيك توك صالح" },
+        {
+          owner: "MATUOS-3MK",
+          code: 400,
+          msg: "يرجى إضافة رابط تيك توك صالح",
+        },
         { status: 400 }
       );
     }
-
-    const body = { query: url, language_id: "1" };
 
     const response = await fetch("https://ttsave.app/download", {
       method: "POST",
@@ -22,9 +24,12 @@ export async function GET(req) {
         Origin: "https://ttsave.app",
         Referer: "https://ttsave.app/en",
         "User-Agent":
-          "Mozilla/5.0 (Linux; Android 12; M2007J20CG Build/SKQ1.211019.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.7258.160 Mobile Safari/537.36",
+          "Mozilla/5.0 (Linux; Android 12; M2007J20CG Build/SKQ1.211019.001) AppleWebKit/537.36 (KHTML, مثل Gecko) Chrome/139.0.7258.160 Mobile Safari/537.36",
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        query: url,
+        language_id: "1",
+      }),
     });
 
     const html = await response.text();
@@ -33,7 +38,11 @@ export async function GET(req) {
 
     if (!downloadLink) {
       return NextResponse.json(
-        { owner: "MATUOS-3MK", code: 404, msg: "No download link found" },
+        {
+          owner: "MATUOS-3MK",
+          code: 404,
+          msg: "لم يتم العثور على رابط التحميل",
+        },
         { status: 404 }
       );
     }
@@ -42,11 +51,18 @@ export async function GET(req) {
       owner: "MATUOS-3MK",
       code: 0,
       msg: "success",
-      data: { link: downloadLink },
+      data: {
+        link: downloadLink,
+      },
     });
-  } catch (err) {
+  } catch (error) {
     return NextResponse.json(
-      { owner: "MATUOS-3MK", code: 500, msg: "Internal error", error: err.message },
+      {
+        owner: "MATUOS-3MK",
+        code: 500,
+        msg: "حدث خطأ في الخادم",
+        error: error.message,
+      },
       { status: 500 }
     );
   }
