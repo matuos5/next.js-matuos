@@ -1,40 +1,74 @@
 // app/api/anime/route.js
 import { NextResponse } from "next/server";
+import * as cheerio from "cheerio";
 
 export async function GET(req) {
   try {
-    const response = await fetch("https://www.onma.top/topManga", {
-      method: "GET",
-      headers: {
-        Host: "www.onma.top",
-        Connection: "keep-alive",
-        "sec-ch-ua-platform": "\"Android\"",
-        "X-Requested-With": "XMLHttpRequest",
-        "User-Agent":
-          "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Mobile Safari/537.36",
-        Accept: "*/*",
-        "sec-ch-ua":
-          "\"Google Chrome\";v=\"137\", \"Chromium\";v=\"137\", \"Not/A)Brand\";v=\"24\"",
-        "sec-ch-ua-mobile": "?1",
-        "Sec-Fetch-Site": "same-origin",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Dest": "empty",
-        Referer: "https://www.onma.top/",
-        "Accept-Encoding": "gzip, deflate, br, zstd",
-        "Accept-Language":
-          "ar-SY,ar;q=0.9,en-SY;q=0.8,en;q=0.7,en-US;q=0.6,fr;q=0.5",
-        Cookie:
-          "XSRF-TOKEN=REPLACE_WITH_YOUR_TOKEN; laravel_session=REPLACE_WITH_YOUR_SESSION"
-      },
-      cache: "no-store"
-    });
+    const { searchParams } = new URL(req.url);
+    const url = searchParams.get("url");
 
-    if (!response.ok) {
+    if (!url) {
       return NextResponse.json(
         {
           owner: "MATUOS-3MK",
-          code: response.status,
-          msg: "فشل في جلب البيانات من onma.top"
+          code: 400,
+          msg: "يرجى اضافة رابط تيك توك صالح",
+        },
+        { status: 400 }
+      );
+    }
+
+    const body = {
+      query: url,
+      language_id: "1",
+    };
+
+    const response = await fetch("https://ttsave.app/download", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://ttsave.app",
+        Referer: "https://ttsave.app/en",
+        "User-Agent":
+          "Mozilla/5.0 (Linux; Android 12; M2007J20CG Build/SKQ1.211019.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.7258.160 Mobile Safari/537.36",
+      },
+      body: JSON.stringify(body),
+    });
+
+    const html = await response.text();
+    const $ = cheerio.load(html);
+
+    const downloadLink = $("#button-download-ready a").attr("href");
+
+    if (!downloadLink) {
+      return NextResponse.json(
+        {
+          owner: "MATUOS-3MK",
+          code: 404,
+          msg: "No download link found",
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      owner: "MATUOS-3MK",
+      code: 0,
+      msg: "success",
+      data: { link: downloadLink },
+    });
+  } catch (err) {
+    return NextResponse.json(
+      {
+        owner: "MATUOS-3MK",
+        code: 500,
+        msg: "Internal error",
+        error: err.message,
+      },
+      { status: 500 }
+    );
+  }
+}          msg: "فشل في جلب البيانات من onma.top"
         },
         { status: response.status }
       );
