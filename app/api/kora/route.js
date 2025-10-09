@@ -1,45 +1,40 @@
 import { NextResponse } from "next/server";
 import axios from "axios";
-import * as xml2js from "xml2js";
+import * as cheerio from "cheerio";
 
 export async function GET() {
   try {
     const rssUrl = "https://www.yallakora.com/RSS/News/1";
     const { data: xml } = await axios.get(rssUrl, { responseType: "text" });
 
-    // تنظيف الـ XML من أي سمات غير صالحة (Attributes بدون قيمة)
-    const cleanXml = xml
-      .replace(/[\x00-\x1F\x7F]/g, "") // إزالة الرموز غير المرئية
-      .replace(/(\s+[a-zA-Z0-9:-]+)(?=\s|>)/g, ''); // إصلاح السمات بدون قيم
+    // نستخدم Cheerio لاستخراج الأخبار من RSS مباشرة
+    const $ = cheerio.load(xml, { xmlMode: true });
 
-    // تحويل الـ XML إلى JSON
-    const parsed = await xml2js.parseStringPromise(cleanXml, {
-      trim: true,
-      explicitArray: false,
-      ignoreAttrs: false,
-      strict: false, // 👈 مهم لتجاوز الأخطاء الشكلية
-      mergeAttrs: true,
+    const news = [];
+    $("item").each((_, el) => {
+      const title = $(el).find("title").text().trim();
+      const description = $(el).find("description").text().trim();
+      const url = $(el).find("link").text().trim();
+      const pubDate = $(el).find("pubDate").text().trim();
+
+      if (title && url) {
+        news.push({ title, description, url, pubDate });
+      }
     });
 
-    const items = parsed?.rss?.channel?.item || [];
-    const news = Array.isArray(items)
-      ? items.map((item) => ({
-          title: item.title,
-          description: item.description,
-          url: item.link,
-          pubDate: item.pubDate,
-        }))
-      : [items];
+    if (!news.length) {
+      throw new Error("لم يتم العثور على أخبار في RSS.");
+    }
 
     return NextResponse.json({
       code: 0,
       msg: "success",
-      data: news.slice(0, 10),
+      data: news.slice(0, 10), // أول 10 أخبار فقط
     });
   } catch (err) {
-    console.error("RSS Error:", err.message);
+    console.error("Kora API Error:", err.message);
     return NextResponse.json(
-      { code: 500, msg: "Failed to fetch RSS", error: err.message },
+      { code: 500, msg: "Failed to fetch news", error: err.message },
       { status: 500 }
     );
   }
