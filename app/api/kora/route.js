@@ -19,7 +19,7 @@ export async function GET() {
     return NextResponse.json({
       code: 0,
       msg: "success",
-      data: news.slice(0, 10), // أول 10 أخبار فقط
+      data: news.slice(0, 10),
     });
   } catch (err) {
     console.error("RSS Error:", err.message);
@@ -28,13 +28,7 @@ export async function GET() {
       { status: 500 }
     );
   }
-}      code: 0,
-      msg: "success",
-      data: news.slice(0, 10), // أول 10 أخبار فقط
-    });
-  } catch (err) {
-    console.error("Scrape Error:", err.message);
-    return NextResponse.json(
+}    return NextResponse.json(
       { code: 500, msg: "Scraping error", error: err.message },
       { status: 500 }
     );
