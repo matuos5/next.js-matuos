@@ -11,6 +11,11 @@ export async function GET() {
       },
     });
 
+    // التحقق من حالة الرد قبل قراءة البيانات
+    if (!response.ok) {
+      throw new Error(`Failed with status ${response.status}`);
+    }
+
     const data = await response.json();
 
     return NextResponse.json({
@@ -30,33 +35,4 @@ export async function GET() {
       { status: 500 }
     );
   }
-}      throw new Error(`Failed with status ${response.status}`);
-    }
-
-    // قراءة النص (ملف JavaScript)
-    const data = await response.text();
-
-    console.log("✅ Successfully fetched Yallakora layout");
-
-    return NextResponse.json({
-      owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
-      code: 0,
-      msg: "success",
-      data: {
-        raw: data,
-        contentLength: data.length,
-      },
-    });
-  } catch (err) {
-    console.error("❌ Error fetching Yallakora layout:", err.message);
-    return NextResponse.json(
-      {
-        owner: "𝙈𝙤𝙝𝙖𝙢𝙚𝙙-𝘼𝙧𝙚𝙣𝙚",
-        code: 500,
-        msg: "Internal error",
-        data: { error: err.message },
-      },
-      { status: 500 }
-    );
-  }
-        }
+}
