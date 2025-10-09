@@ -16,43 +16,50 @@ export async function GET() {
     const $ = cheerio.load(html);
     const news = [];
 
-    // استخراج الأخبار من العناصر
-    $(".articleCard, .ArticleItem").each((_, el) => {
-      const title = $(el).find("h3 a, .articleTitle a").text().trim();
-      const url = $(el).find("a").attr("href");
-      const description = $(el).find(".articleSummary, p").first().text().trim();
-      const image =
-        $(el).find("img").attr("data-src") ||
-        $(el).find("img").attr("src") ||
-        null;
+    // نحاول أنماط متعددة لأن يلا كورة يغير التنسيقات باستمرار
+    const selectors = [
+      ".articleCard",
+      ".ArticleItem",
+      ".article", // بعض الصفحات القديمة
+      ".newsCard", // تنسيق جديد محتمل
+      ".LatestNewsList li",
+    ];
 
-      if (title && url) {
-        news.push({
-          title,
-          description,
-          url: url.startsWith("http")
-            ? url
-            : `https://www.yallakora.com${url}`,
-          image,
-        });
-      }
-    });
+    for (const sel of selectors) {
+      $(sel).each((_, el) => {
+        const title =
+          $(el).find("h3 a, h2 a, .articleTitle a").text().trim() ||
+          $(el).find("a").first().text().trim();
+        let link = $(el).find("a").attr("href");
+        const description =
+          $(el).find(".articleSummary, p").first().text().trim() || "";
+        const image =
+          $(el).find("img").attr("data-src") ||
+          $(el).find("img").attr("src") ||
+          null;
 
-    if (!news.length) throw new Error("لم يتم العثور على أخبار في صفحة الموقع.");
+        if (title && link) {
+          if (!link.startsWith("http"))
+            link = `https://www.yallakora.com${link}`;
+          news.push({ title, description, url: link, image });
+        }
+      });
+      if (news.length) break; // نوقف عند أول selector ناجح
+    }
+
+    if (!news.length) {
+      throw new Error("لم يتم العثور على أخبار في الصفحة.");
+    }
 
     return NextResponse.json({
       code: 0,
       msg: "success",
-      data: news.slice(0, 10), // أول 10 فقط
+      data: news.slice(0, 10),
     });
   } catch (err) {
     console.error("Kora API Error:", err.message);
     return NextResponse.json(
       { code: 500, msg: "Failed to fetch news", error: err.message },
-      { status: 500 }
-    );
-  }
-}      { code: 500, msg: "Failed to fetch news", error: err.message },
       { status: 500 }
     );
   }
