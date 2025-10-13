@@ -176,7 +176,7 @@ export async function GET(req) {
       { status: 500 }
     );
   }
-      }        } else {
+} else {
           const v = setCookie.split(";")[0];
           cookieJar = cookieJar ? cookieJar + "; " + v : v;
         }
