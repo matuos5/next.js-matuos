@@ -6,35 +6,177 @@ import * as cheerio from "cheerio";
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const userUrl = searchParams.get("url"); // (اختياري) لو حبيت ترسل رابط للموقع لكن هنا نخدم getindevice خطواته ثابتة
+    const userUrl = searchParams.get("url"); // (اختياري)
 
-    // ملف التعريف للهيدرز المشتركين
+    // الهيدرز العامة
     const commonHeaders = {
       Host: "getindevice.com",
       Connection: "keep-alive",
       "User-Agent":
         "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Mobile Safari/537.36",
-      "sec-ch-ua": '"Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
+      "sec-ch-ua":
+        '"Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
       "sec-ch-ua-mobile": "?1",
       "sec-ch-ua-platform": '"Android"',
       "Accept-Language":
         "ar-SY,ar;q=0.9,en-SY;q=0.8,en;q=0.7,en-US;q=0.6,fr;q=0.5",
     };
 
-    // سنجمع الكوكيز من كل رد ونرسلها في الطلب التالي
+    // تجميع الكوكيز
     let cookieJar = "";
 
-    // helper لإضافة كوكيز من header set-cookie
     const storeSetCookie = (headers) => {
       if (!headers) return;
       const setCookie = headers["set-cookie"] || headers["Set-Cookie"];
       if (setCookie) {
-        // يمكن أن يكون array أو string
-        if (Array.isArray(setCookie)) {
-          cookieJar = cookieJar
-            ? cookieJar + "; " + setCookie.map((s) => s.split(";")[0]).join("; ")
-            : setCookie.map((s) => s.split(";")[0]).join("; ");
-        } else {
+        const cookies = Array.isArray(setCookie)
+          ? setCookie.map((s) => s.split(";")[0]).join("; ")
+          : setCookie.split(";")[0];
+        cookieJar = cookieJar ? `${cookieJar}; ${cookies}` : cookies;
+      }
+    };
+
+    const headersWithCookies = (extra = {}) => ({
+      ...commonHeaders,
+      ...extra,
+      ...(cookieJar ? { Cookie: cookieJar } : {}),
+    });
+
+    // 1️⃣ GET /ar/
+    const res1 = await axios.get("https://getindevice.com/ar/", {
+      headers: headersWithCookies({
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        Purpose: "prefetch",
+        "Sec-Purpose": "prefetch",
+        "Upgrade-Insecure-Requests": "1",
+        Referer: "https://getindevice.com/ar/",
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+      }),
+      responseType: "text",
+      validateStatus: () => true,
+    });
+    storeSetCookie(res1.headers);
+
+    // 2️⃣ GET superpwa-sw.js
+    try {
+      const res2 = await axios.get(
+        "https://getindevice.com/superpwa-sw.js?2.2.37",
+        {
+          headers: headersWithCookies({
+            Accept: "*/*",
+            "Service-Worker": "script",
+            "Sec-Fetch-Site": "same-origin",
+            "Sec-Fetch-Mode": "same-origin",
+            "Sec-Fetch-Dest": "serviceworker",
+            Referer: "https://getindevice.com/ar/",
+            "Accept-Encoding": "gzip, deflate, br, zstd",
+          }),
+          responseType: "text",
+          validateStatus: () => true,
+        }
+      );
+      storeSetCookie(res2.headers);
+    } catch {
+      // غير مهم
+    }
+
+    // 3️⃣ POST measurement/conversion
+    const measurementUrl =
+      "https://getindevice.com/ye00/g/measurement/conversion/?random=1760304488173&cv=11&tid=G-0EPP8F0FWT&fst=1760304488173&fmt=6&en=download_request&gtm=45g92e5a80h1v893377390z89109244673za204zb9109244673zd9109244673xec&gcd=13l3l3l3l1l1&dma=0";
+    const res3 = await axios.post(measurementUrl, null, {
+      headers: headersWithCookies({
+        "Content-Length": "0",
+        Accept: "*/*",
+        Origin: "https://getindevice.com",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-Mode": "no-cors",
+        "Sec-Fetch-Dest": "empty",
+        Referer: "https://getindevice.com/ar/",
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+      }),
+      responseType: "text",
+      validateStatus: () => true,
+    });
+    storeSetCookie(res3.headers);
+
+    // 4️⃣ POST video_result
+    const videoResultUrl =
+      "https://getindevice.com/ye00/ag/g/c?v=2&tid=G-0EPP8F0FWT&en=video_result";
+    const res4 = await axios.post(videoResultUrl, null, {
+      headers: headersWithCookies({
+        "Content-Length": "0",
+        Accept: "*/*",
+        Origin: "https://getindevice.com",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-Mode": "no-cors",
+        "Sec-Fetch-Dest": "empty",
+        Referer: "https://getindevice.com/ar/",
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+      }),
+      responseType: "text",
+      validateStatus: () => true,
+    });
+    storeSetCookie(res4.headers);
+
+    // تحليل المحتوى النهائي
+    const html =
+      typeof res4.data === "string"
+        ? res4.data
+        : JSON.stringify(res4.data, null, 2);
+
+    const $ = cheerio.load(html);
+    let videoLink = null;
+
+    videoLink = $("video source").first().attr("src") || $("video").first().attr("src");
+    if (!videoLink)
+      videoLink =
+        $('meta[property="og:video"]').attr("content") ||
+        $('meta[name="twitter:player:stream"]').attr("content");
+    if (!videoLink)
+      videoLink = $('a[href$=".mp4"]').first().attr("href") || null;
+    if (!videoLink) {
+      $("a").each((_, el) => {
+        const href = $(el).attr("href");
+        if (!videoLink && href?.includes(".mp4")) videoLink = href;
+      });
+    }
+    if (!videoLink) {
+      const match = html.match(
+        /https?:\/\/[^'"\s>]+\.(mp4|m3u8)(\?[^'"\s>]*)?/i
+      );
+      if (match) videoLink = match[0];
+    }
+
+    if (!videoLink) {
+      return NextResponse.json(
+        {
+          owner: "MATUOS-3MK",
+          code: 404,
+          msg: "لم يتم العثور على رابط الفيديو.",
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      owner: "MATUOS-3MK",
+      code: 0,
+      msg: "success",
+      data: { link: videoLink },
+    });
+  } catch (err) {
+    return NextResponse.json(
+      {
+        owner: "MATUOS-3MK",
+        code: 500,
+        msg: "Internal error",
+        error: err.message,
+      },
+      { status: 500 }
+    );
+  }
+      }        } else {
           const v = setCookie.split(";")[0];
           cookieJar = cookieJar ? cookieJar + "; " + v : v;
         }
