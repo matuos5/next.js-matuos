@@ -3,7 +3,7 @@ import * as cheerio from "cheerio";
 
 export async function GET(req) {
   try {
-    // قراءة الاسم من الرابط: ?name=naruto
+    // قراءة الاسم من الباراميتر ?name=
     const { searchParams } = new URL(req.url);
     const name = searchParams.get("name");
 
@@ -12,17 +12,17 @@ export async function GET(req) {
         {
           owner: "MATUOS-3MK",
           code: 400,
-          msg: "يرجى تمرير اسم الأنمي في الباراميتر 'name'. مثال: /api/witanime?name=boku-no-hero-academia",
+          msg: "يرجى تمرير اسم الأنمي في الباراميتر 'name'. مثال: /api/witanime/search?name=dragon ball",
         },
         { status: 400 }
       );
     }
 
-    // تحويل الاسم إلى slug متوافق مع الموقع
-    const slug = name.trim().toLowerCase().replace(/\s+/g, "-");
-    const targetUrl = `https://witanime.world/anime/${slug}/`;
+    // بناء رابط البحث
+    const query = encodeURIComponent(name.trim());
+    const targetUrl = `https://witanime.world/?search_param=animes&s=${query}`;
 
-    // الجلب المباشر بدون AllOrigins
+    // جلب صفحة البحث مباشرة من الموقع
     const response = await fetch(targetUrl, {
       method: "GET",
       headers: {
@@ -35,6 +35,69 @@ export async function GET(req) {
       },
       cache: "no-store",
     });
+
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          owner: "MATUOS-3MK",
+          code: response.status,
+          msg: `فشل في تحميل صفحة البحث (${response.status})`,
+        },
+        { status: response.status }
+      );
+    }
+
+    const html = await response.text();
+    const $ = cheerio.load(html);
+
+    const results = [];
+
+    // كل أنمي في نتائج البحث
+    $(".anime-card, .anime-card-container, .anime-card-title").each((i, el) => {
+      const title =
+        $(el).find("h3 a").text().trim() ||
+        $(el).find("a").attr("title") ||
+        $(el).find("a").text().trim();
+
+      const link = $(el).find("a").attr("href");
+      const image =
+        $(el).find("img").attr("data-src") ||
+        $(el).find("img").attr("src") ||
+        null;
+
+      if (title && link) results.push({ title, link, image });
+    });
+
+    if (!results.length) {
+      return NextResponse.json(
+        {
+          owner: "MATUOS-3MK",
+          code: 404,
+          msg: `لم يتم العثور على أي نتائج للأنمي: ${name}`,
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      owner: "MATUOS-3MK",
+      code: 0,
+      msg: "success",
+      total: results.length,
+      data: results,
+    });
+  } catch (err) {
+    return NextResponse.json(
+      {
+        owner: "MATUOS-3MK",
+        code: 500,
+        msg: "Internal error",
+        error: err.message,
+      },
+      { status: 500 }
+    );
+  }
+}    });
 
     if (!response.ok) {
       return NextResponse.json(
