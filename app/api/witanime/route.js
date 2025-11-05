@@ -3,7 +3,7 @@ import * as cheerio from "cheerio";
 
 export async function GET(req) {
   try {
-    // قراءة اسم الأنمي من الباراميتر ?name=
+    // قراءة الاسم من الرابط: ?name=naruto
     const { searchParams } = new URL(req.url);
     const name = searchParams.get("name");
 
@@ -18,14 +18,12 @@ export async function GET(req) {
       );
     }
 
-    // تحويل الاسم إلى slug متوافق مع موقع witanime
+    // تحويل الاسم إلى slug متوافق مع الموقع
     const slug = name.trim().toLowerCase().replace(/\s+/g, "-");
-
-    // تجهيز الرابط
     const targetUrl = `https://witanime.world/anime/${slug}/`;
-    const fetchUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
 
-    const response = await fetch(fetchUrl, {
+    // الجلب المباشر بدون AllOrigins
+    const response = await fetch(targetUrl, {
       method: "GET",
       headers: {
         "User-Agent":
@@ -35,17 +33,30 @@ export async function GET(req) {
         "Accept-Language":
           "ar-SY,ar;q=0.9,en-SY;q=0.8,en;q=0.7,en-US;q=0.6,fr;q=0.5",
       },
+      cache: "no-store",
     });
+
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          owner: "MATUOS-3MK",
+          code: response.status,
+          msg: `فشل في تحميل الصفحة (${response.status})`,
+        },
+        { status: response.status }
+      );
+    }
 
     const html = await response.text();
     const $ = cheerio.load(html);
 
-    // استخراج الحلقات
+    // تحليل الصفحة
     const episodes = [];
     $(".episodes-card, .episode-card, .ep-card").each((i, el) => {
       const title =
         $(el).find(".episode-title a").text().trim() ||
         $(el).find("a").text().trim();
+
       const link = $(el).find("a").attr("href");
       const img =
         $(el).find("img").attr("data-src") ||
@@ -55,7 +66,6 @@ export async function GET(req) {
       if (title && link) episodes.push({ title, link, image: img });
     });
 
-    // بيانات الأنمي العامة
     const animeTitle =
       $("h1.entry-title").text().trim() ||
       $(".anime-title, .entry-title").first().text().trim();
@@ -105,4 +115,4 @@ export async function GET(req) {
       { status: 500 }
     );
   }
-}
+    }
