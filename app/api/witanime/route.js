@@ -3,22 +3,25 @@ import * as cheerio from "cheerio";
 
 export async function GET(req) {
   try {
-    // قراءة اسم الأنمي من query param مثل ?slug=boku-no-hero-academia
+    // قراءة اسم الأنمي من الباراميتر ?name=
     const { searchParams } = new URL(req.url);
-    const slug = searchParams.get("slug");
+    const name = searchParams.get("name");
 
-    if (!slug) {
+    if (!name) {
       return NextResponse.json(
         {
           owner: "MATUOS-3MK",
           code: 400,
-          msg: "يرجى تمرير اسم الأنمي في الباراميتر 'slug'. مثال: /api/anime?slug=boku-no-hero-academia",
+          msg: "يرجى تمرير اسم الأنمي في الباراميتر 'name'. مثال: /api/witanime?name=boku-no-hero-academia",
         },
         { status: 400 }
       );
     }
 
-    // رابط الموسم المطلوب
+    // تحويل الاسم إلى slug متوافق مع موقع witanime
+    const slug = name.trim().toLowerCase().replace(/\s+/g, "-");
+
+    // تجهيز الرابط
     const targetUrl = `https://witanime.world/anime/${slug}/`;
     const fetchUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
 
@@ -43,19 +46,16 @@ export async function GET(req) {
       const title =
         $(el).find(".episode-title a").text().trim() ||
         $(el).find("a").text().trim();
-
       const link = $(el).find("a").attr("href");
       const img =
         $(el).find("img").attr("data-src") ||
         $(el).find("img").attr("src") ||
         null;
 
-      if (title && link) {
-        episodes.push({ title, link, image: img });
-      }
+      if (title && link) episodes.push({ title, link, image: img });
     });
 
-    // معلومات الأنمي
+    // بيانات الأنمي العامة
     const animeTitle =
       $("h1.entry-title").text().trim() ||
       $(".anime-title, .entry-title").first().text().trim();
@@ -76,7 +76,7 @@ export async function GET(req) {
         {
           owner: "MATUOS-3MK",
           code: 404,
-          msg: "لم يتم العثور على الأنمي المطلوب.",
+          msg: `لم يتم العثور على أنمي بالاسم: ${name}`,
         },
         { status: 404 }
       );
@@ -105,4 +105,4 @@ export async function GET(req) {
       { status: 500 }
     );
   }
-        } 
+}
