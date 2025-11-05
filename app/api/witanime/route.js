@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 
-export async function GET(req) {
+// لا حاجة لتعريف req إن كنا لا نستخدمه
+export async function GET(request) {
   try {
-    // قراءة الاسم من الباراميتر ?name=
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(request.url);
     const name = searchParams.get("name");
 
     if (!name) {
@@ -22,7 +22,7 @@ export async function GET(req) {
     const query = encodeURIComponent(name.trim());
     const targetUrl = `https://witanime.world/?search_param=animes&s=${query}`;
 
-    // جلب صفحة البحث مباشرة من الموقع
+    // جلب صفحة البحث
     const response = await fetch(targetUrl, {
       method: "GET",
       headers: {
@@ -52,7 +52,7 @@ export async function GET(req) {
 
     const results = [];
 
-    // كل أنمي في نتائج البحث
+    // تحليل نتائج البحث من بطاقات الأنمي
     $(".anime-card, .anime-card-container, .anime-card-title").each((i, el) => {
       const title =
         $(el).find("h3 a").text().trim() ||
@@ -97,85 +97,4 @@ export async function GET(req) {
       { status: 500 }
     );
   }
-}    });
-
-    if (!response.ok) {
-      return NextResponse.json(
-        {
-          owner: "MATUOS-3MK",
-          code: response.status,
-          msg: `فشل في تحميل الصفحة (${response.status})`,
-        },
-        { status: response.status }
-      );
-    }
-
-    const html = await response.text();
-    const $ = cheerio.load(html);
-
-    // تحليل الصفحة
-    const episodes = [];
-    $(".episodes-card, .episode-card, .ep-card").each((i, el) => {
-      const title =
-        $(el).find(".episode-title a").text().trim() ||
-        $(el).find("a").text().trim();
-
-      const link = $(el).find("a").attr("href");
-      const img =
-        $(el).find("img").attr("data-src") ||
-        $(el).find("img").attr("src") ||
-        null;
-
-      if (title && link) episodes.push({ title, link, image: img });
-    });
-
-    const animeTitle =
-      $("h1.entry-title").text().trim() ||
-      $(".anime-title, .entry-title").first().text().trim();
-
-    const animeImage =
-      $(".anime-thumbnail img").attr("data-src") ||
-      $(".anime-thumbnail img").attr("src") ||
-      $("img").first().attr("src") ||
-      null;
-
-    const animeDescription =
-      $(".anime-story").text().trim() ||
-      $(".story p").text().trim() ||
-      null;
-
-    if (!animeTitle && !episodes.length) {
-      return NextResponse.json(
-        {
-          owner: "MATUOS-3MK",
-          code: 404,
-          msg: `لم يتم العثور على أنمي بالاسم: ${name}`,
-        },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      owner: "MATUOS-3MK",
-      code: 0,
-      msg: "success",
-      anime: {
-        title: animeTitle,
-        image: animeImage,
-        description: animeDescription,
-      },
-      total_episodes: episodes.length,
-      episodes,
-    });
-  } catch (err) {
-    return NextResponse.json(
-      {
-        owner: "MATUOS-3MK",
-        code: 500,
-        msg: "Internal error",
-        error: err.message,
-      },
-      { status: 500 }
-    );
-  }
-    }
+}
