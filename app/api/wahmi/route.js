@@ -23,6 +23,7 @@ const BASE_HEADERS = {
   priority: "u=0, i",
 };
 
+// 🧩 أدوات مساعدة
 function isWahmiUrl(urlStr) {
   try {
     const u = new URL(urlStr);
@@ -35,6 +36,212 @@ function isWahmiUrl(urlStr) {
 function absolutize(base, maybeRelative) {
   try {
     return new URL(maybeRelative, base).toString();
+  } catch {
+    return maybeRelative;
+  }
+}
+
+function getFilenameFromDisposition(dispo) {
+  if (!dispo) return undefined;
+  const m =
+    /filename\*?=(?:UTF-8''|")?([^";\r\n]+)(?:")?/i.exec(dispo) ||
+    /filename="?([^"]+)"?/i.exec(dispo);
+  if (m && m[1]) {
+    try {
+      return decodeURIComponent(m[1]);
+    } catch {
+      return m[1];
+    }
+  }
+  return undefined;
+}
+
+async function headOrLightGet(url, referer) {
+  const res = await fetch(url, {
+    method: "GET",
+    redirect: "manual",
+    headers: {
+      ...BASE_HEADERS,
+      Referer: referer ?? new URL(url).origin,
+      Range: "bytes=0-0",
+    },
+  });
+  return res;
+}
+
+async function fetchHtml(url, referer) {
+  const res = await fetch(url, {
+    method: "GET",
+    redirect: "manual",
+    headers: {
+      ...BASE_HEADERS,
+      Referer: referer ?? new URL(url).origin,
+    },
+  });
+  return res;
+}
+
+function isDownloadableContent(ct) {
+  if (!ct) return false;
+  const lower = ct.toLowerCase();
+  return (
+    lower.startsWith("video/") ||
+    lower.startsWith("audio/") ||
+    lower.startsWith("application/octet-stream") ||
+    lower === "application/zip" ||
+    lower === "application/x-rar-compressed" ||
+    lower.includes("application/pdf")
+  );
+}
+
+// 🎯 الدالة الأساسية التي تستخرج الرابط المباشر
+async function resolveWahmiDirectLink(initialUrl) {
+  let currentUrl = initialUrl;
+  let lastReferer = "https://wahmi.org/";
+  const maxHops = 5;
+
+  for (let i = 0; i < maxHops; i++) {
+    const probe = await headOrLightGet(currentUrl, lastReferer);
+
+    // لو كان Redirect
+    if (probe.status >= 300 && probe.status < 400) {
+      const loc = probe.headers.get("location");
+      if (!loc) break;
+      const nextUrl = absolutize(currentUrl, loc);
+      lastReferer = currentUrl;
+      currentUrl = nextUrl;
+      continue;
+    }
+
+    const ct = probe.headers.get("content-type");
+    const dispo = probe.headers.get("content-disposition");
+    const cl = probe.headers.get("content-length");
+
+    // لو الملف مباشر
+    if (isDownloadableContent(ct) || dispo) {
+      return {
+        directUrl: currentUrl,
+        contentType: ct || undefined,
+        contentLength: cl ? Number(cl) : undefined,
+        filename: getFilenameFromDisposition(dispo),
+      };
+    }
+
+    // نحصل على صفحة HTML ونبحث عن الرابط الحقيقي داخلها
+    const htmlRes = await fetchHtml(currentUrl, lastReferer);
+    const html = await htmlRes.text();
+    const $ = cheerio.load(html);
+
+    let candidate = null;
+    // نبحث عن أي رابط تحميل mp4 أو download
+    $('a[href*=".mp4"], a[href*="/download/"], source[src*=".mp4"]').each(
+      (_, el) => {
+        const href = $(el).attr("href") || $(el).attr("src");
+        if (href && href.includes(".mp4")) {
+          candidate = absolutize(currentUrl, href);
+        }
+      }
+    );
+
+    // لو وجدنا مرشح جديد، نحاول التحقق منه
+    if (candidate) {
+      const test = await headOrLightGet(candidate, currentUrl);
+      const ct2 = test.headers.get("content-type");
+      const dispo2 = test.headers.get("content-disposition");
+      const cl2 = test.headers.get("content-length");
+
+      if (isDownloadableContent(ct2) || dispo2) {
+        return {
+          directUrl: candidate,
+          contentType: ct2 || undefined,
+          contentLength: cl2 ? Number(cl2) : undefined,
+          filename: getFilenameFromDisposition(dispo2),
+        };
+      }
+
+      // لو لازال HTML نعيد الكرة
+      currentUrl = candidate;
+      lastReferer = currentUrl;
+      continue;
+    }
+
+    // fallback لو لم نجد شيء
+    return {
+      directUrl: currentUrl,
+      contentType: ct || "text/html",
+      contentLength: cl ? Number(cl) : undefined,
+      filename: getFilenameFromDisposition(dispo),
+    };
+  }
+
+  throw new Error("تعذر تحديد رابط التحميل المباشر بعد عدة محاولات");
+}
+
+// 🚀 دالة GET في Next.js API Route
+export async function GET(req) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const fileUrl = searchParams.get("url");
+
+    if (!fileUrl) {
+      return NextResponse.json(
+        {
+          owner: "MATUOS-3MK",
+          code: 400,
+          msg: "يرجى إضافة رابط صالح من wahmi.org عبر الوسيط url",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!isWahmiUrl(fileUrl)) {
+      return NextResponse.json(
+        {
+          owner: "MATUOS-3MK",
+          code: 400,
+          msg: "الرابط يجب أن يكون ضمن نطاق wahmi.org",
+        },
+        { status: 400 }
+      );
+    }
+
+    const resolved = await resolveWahmiDirectLink(fileUrl);
+
+    if (!resolved?.directUrl) {
+      return NextResponse.json(
+        {
+          owner: "MATUOS-3MK",
+          code: 404,
+          msg: "لم يتم العثور على رابط التحميل",
+        },
+        { status: 404 }
+      );
+    }
+
+    // ✅ النتيجة النهائية
+    return NextResponse.json({
+      owner: "MATUOS-3MK",
+      code: 0,
+      msg: "success",
+      data: {
+        link: resolved.directUrl,
+        filename: resolved.filename ?? "unknown",
+        contentType: resolved.contentType ?? "unknown",
+        size: resolved.contentLength ?? null,
+      },
+    });
+  } catch (err) {
+    return NextResponse.json(
+      {
+        owner: "MATUOS-3MK",
+        code: 500,
+        msg: "حدث خطأ داخلي في السيرفر",
+        error: err?.message || String(err),
+      },
+      { status: 500 }
+    );
+  }
+}    return new URL(maybeRelative, base).toString();
   } catch {
     return maybeRelative;
   }
