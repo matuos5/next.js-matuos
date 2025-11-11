@@ -48,19 +48,18 @@ async function fetchHtml(url, { ua = DESKTOP_UA, referer = ORIG + "/" } = {}) {
     method: "GET",
     headers: {
       "User-Agent": ua,
-      "Accept":
-        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       "Accept-Language": "ar,en;q=0.9",
       "Cache-Control": "no-cache",
-      Pragma: "no-cache",
+      "Pragma": "no-cache",
       "Upgrade-Insecure-Requests": "1",
       "Sec-Fetch-Dest": "document",
       "Sec-Fetch-Mode": "navigate",
       "Sec-Fetch-Site": "none",
-      Referer: referer,
+      "Referer": referer
     },
     redirect: "follow",
-    cache: "no-store",
+    cache: "no-store"
   });
 
   if (res.status === 403) throw new Error("HTTP_403");
@@ -68,19 +67,17 @@ async function fetchHtml(url, { ua = DESKTOP_UA, referer = ORIG + "/" } = {}) {
   return await res.text();
 }
 
+// صفحة التحميل: نحاول استخراج الرابط المباشر + الحجم
 async function scrapeDownloadPage(base, downloadPageUrl, ua) {
   try {
-    const html = await fetchHtml(downloadPageUrl, {
-      referer: base + "/",
-      ua,
-    });
+    const html = await fetchHtml(downloadPageUrl, { referer: base + "/", ua });
     const $ = cheerio.load(html);
+
     let direct =
       $("a.btn.download-start-btn").attr("href") ||
       $("#download_link").attr("href") ||
       $("a[data-dt-apk]").attr("href") ||
       $("a[rel='noopener'][target='_blank']").attr("href");
-
     direct = abs(base, direct);
 
     let size =
@@ -90,15 +87,13 @@ async function scrapeDownloadPage(base, downloadPageUrl, ua) {
       $("span:contains('File size')").next().text().trim() ||
       "Unknown";
 
-    return {
-      directDownloadUrl: direct || "Not available",
-      fileSize: size || "Unknown",
-    };
+    return { directDownloadUrl: direct || "Not available", fileSize: size || "Unknown" };
   } catch {
     return { directDownloadUrl: "Not available", fileSize: "Unknown" };
   }
 }
 
+// صفحة التطبيق: نأتي بصفحة التحميل + بيانات عامة
 async function getDownloadPageFromApp(base, appUrl, ua) {
   const html = await fetchHtml(appUrl, { referer: base + "/", ua });
   const $ = cheerio.load(html);
@@ -130,6 +125,7 @@ async function getDownloadPageFromApp(base, appUrl, ua) {
   return { downloadPageUrl, title, developer, rating, icon };
 }
 
+// عنصر نتيجة البحث: نفصّله ونحاول الوصول للرابط المباشر
 async function detailFromSearchItem(base, ua, $, el) {
   const $el = $(el);
 
@@ -170,10 +166,11 @@ async function detailFromSearchItem(base, ua, $, el) {
     url: appUrl,
     downloadPage: downloadPageUrl,
     directDownloadUrl,
-    fileSize,
+    fileSize
   };
 }
 
+// البحث في APKPure
 async function scrapeApkpureSearch(base, q, ua) {
   const searchUrl = `${base}/ar/search?q=${encodeURIComponent(q)}`;
   const html = await fetchHtml(searchUrl, { referer: base + "/", ua });
@@ -189,7 +186,9 @@ async function scrapeApkpureSearch(base, q, ua) {
     try {
       const one = await detailFromSearchItem(base, ua, $, el);
       results.push(one);
-    } catch {}
+    } catch {
+      // تجاهل العناصر التي تفشل
+    }
   }
   return results;
 }
@@ -201,16 +200,11 @@ export async function GET(req) {
 
     if (!q) {
       return NextResponse.json(
-        {
-          owner: "MATUOS-3MK",
-          code: 400,
-          msg: "يرجى تمرير q (اسم التطبيق أو رابط من apkpure)",
-        },
+        { owner: "MATUOS-3MK", code: 400, msg: "يرجى تمرير q (اسم التطبيق أو رابط من apkpure)" },
         { status: 400 }
       );
     }
 
-    // المحاولة 1: الدومين الأصلي مع UA دسكتوب
     let base = ORIG;
     let ua = DESKTOP_UA;
     let results = [];
@@ -219,34 +213,35 @@ export async function GET(req) {
       if (isApkpureUrl(q)) {
         const u = new URL(q);
 
+        // ملف مباشر
         if (/\.(apk|xapk|apkm|zip|obb)(\?|$)/i.test(u.pathname)) {
-          results = [
-            {
-              title: u.pathname.split("/").pop() || "Unknown",
-              developer: "Unknown",
-              rating: "Not rated",
-              icon: null,
-              url: q,
-              downloadPage: "Not available",
-              directDownloadUrl: q,
-              fileSize: "Unknown",
-            },
-          ];
-        } else if (/\/download/i.test(u.pathname) || u.searchParams.get("from") === "details") {
+          results = [{
+            title: u.pathname.split("/").pop() || "Unknown",
+            developer: "Unknown",
+            rating: "Not rated",
+            icon: null,
+            url: q,
+            downloadPage: "Not available",
+            directDownloadUrl: q,
+            fileSize: "Unknown"
+          }];
+        }
+        // صفحة تحميل
+        else if (/\/download/i.test(u.pathname) || u.searchParams.get("from") === "details") {
           const dl = await scrapeDownloadPage(base, q, ua);
-          results = [
-            {
-              title: "Unknown",
-              developer: "Unknown",
-              rating: "Not rated",
-              icon: null,
-              url: null,
-              downloadPage: q,
-              directDownloadUrl: dl.directDownloadUrl,
-              fileSize: dl.fileSize,
-            },
-          ];
-        } else {
+          results = [{
+            title: "Unknown",
+            developer: "Unknown",
+            rating: "Not rated",
+            icon: null,
+            url: null,
+            downloadPage: q,
+            directDownloadUrl: dl.directDownloadUrl,
+            fileSize: dl.fileSize
+          }];
+        }
+        // صفحة تطبيق
+        else {
           const meta = await getDownloadPageFromApp(base, q, ua);
           let directDownloadUrl = "Not available";
           let fileSize = "Unknown";
@@ -255,24 +250,23 @@ export async function GET(req) {
             directDownloadUrl = dl.directDownloadUrl;
             fileSize = dl.fileSize;
           }
-          results = [
-            {
-              title: meta.title || "Unknown",
-              developer: meta.developer || "Unknown",
-              rating: meta.rating || "Not rated",
-              icon: meta.icon || null,
-              url: q,
-              downloadPage: meta.downloadPageUrl || "Not available",
-              directDownloadUrl,
-              fileSize,
-            },
-          ];
+          results = [{
+            title: meta.title || "Unknown",
+            developer: meta.developer || "Unknown",
+            rating: meta.rating || "Not rated",
+            icon: meta.icon || null,
+            url: q,
+            downloadPage: meta.downloadPageUrl || "Not available",
+            directDownloadUrl,
+            fileSize
+          }];
         }
       } else {
+        // بحث بالاسم
         results = await scrapeApkpureSearch(base, q, ua);
       }
     } catch {
-      // المحاولة 2: نطاق الموبايل مع UA موبايل
+      // محاولة بديلة: نطاق الموبايل + UA موبايل
       base = ALT;
       ua = MOBILE_UA;
 
@@ -286,18 +280,16 @@ export async function GET(req) {
           directDownloadUrl = dl.directDownloadUrl;
           fileSize = dl.fileSize;
         }
-        results = [
-          {
-            title: meta.title || "Unknown",
-            developer: meta.developer || "Unknown",
-            rating: meta.rating || "Not rated",
-            icon: meta.icon || null,
-            url: q,
-            downloadPage: meta.downloadPageUrl || "Not available",
-            directDownloadUrl,
-            fileSize,
-          },
-        ];
+        results = [{
+          title: meta.title || "Unknown",
+          developer: meta.developer || "Unknown",
+          rating: meta.rating || "Not rated",
+          icon: meta.icon || null,
+          url: q,
+          downloadPage: meta.downloadPageUrl || "Not available",
+          directDownloadUrl,
+          fileSize
+        }];
       } else {
         results = await scrapeApkpureSearch(base, q, ua);
       }
@@ -305,12 +297,7 @@ export async function GET(req) {
 
     if (!results.length) {
       return NextResponse.json(
-        {
-          owner: "MATUOS-3MK",
-          code: 404,
-          msg: "لم يتم العثور على نتائج",
-          data: { query: q, total: 0, results: [] },
-        },
+        { owner: "MATUOS-3MK", code: 404, msg: "لم يتم العثور على نتائج", data: { query: q, total: 0, results: [] } },
         { status: 404 }
       );
     }
@@ -319,37 +306,15 @@ export async function GET(req) {
       owner: "MATUOS-3MK",
       code: 0,
       msg: "success",
-      data: { query: q, total: results.length, results },
+      data: { query: q, total: results.length, results }
     });
   } catch (err) {
     return NextResponse.json(
-      {
-        owner: "MATUOS-3MK",
-        code: 500,
-        msg: "حدث خطأ داخلي في السيرفر",
-        error: err?.message || String(err),
-      },
+      { owner: "MATUOS-3MK", code: 500, msg: "حدث خطأ داخلي في السيرفر", error: err?.message || String(err) },
       { status: 500 }
     );
   }
-}      "Sec-Fetch-Site": "none",
-      "Referer": referer,
-    },
-    redirect: "follow",
-    cache: "no-store",
-    // @ts-ignore next options
-    next: { revalidate: 0 },
-  });
-
-  if (res.status === 403) throw new Error("HTTP_403");
-  if (!res.ok) throw new Error(`HTTP_${res.status}`);
-  return await res.text();
-}
-
-function pick($, sels = [], attr) {
-  for (const s of sels) {
-    if (attr) {
-      const v = $(s).first().attr(attr);
+            }    const v = $(s).first().attr(attr);
       if (v) return v.trim();
     } else {
       const t = $(s).first().text();
