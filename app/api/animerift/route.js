@@ -1,6 +1,7 @@
 // app/api/animerrift/search/route.js
 
 import { NextResponse } from "next/server";
+import axios from "axios";
 
 export async function GET(req) {
   try {
@@ -25,16 +26,120 @@ export async function GET(req) {
     const deviceTimezone = new Date().toISOString();
     const deviceId = "eJ1Ou9KbTmy1ohBFa4XzNu:APA91bGd3t2lyXGK0YjR2wkr_rvqcME8kvhO6tlj22q8HFMG2BcVUyfeQX6z9RJIWct4bDv3ulO8t0AQHFLCcAa_o1_DdwRNR7-NacCTIyRb46yt0prWV5k";
 
-    const response = await fetch("https://gateway.anime-rift.com/api/v3/library/search", {
-      method: "POST",
-      headers: {
-        "User-Agent": "Dart/3.8 (dart:io)",
-        "Accept": "application/json",
-        "Accept-Encoding": "gzip, deflate",
-        "Content-Type": "application/json; charset=UTF-8",
-        "x-device-release-version": "3.7.3",
-        "integrity": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzY29wZSI6IkFOSU1FLkxJQlJBUlkuU0VBUkNIIiwiZXhwIjoxNzY0ODM5NTQ5LCJpYXQiOjE3NjQ4Mzk1Mzl9.ZmAkx9UIisvTC4WKtkjTK0SxXQ5KRFVqMErmPBDzOcU",
-        "x-device-timezone": deviceTimezone,
+    const response = await axios.post(
+      "https://gateway.anime-rift.com/api/v3/library/search",
+      {
+        query: query
+      },
+      {
+        params: {
+          page,
+          sort_by: sortBy,
+          sort_direction: sortDirection,
+          text_direction: textDirection
+        },
+        headers: {
+          "User-Agent": "Dart/3.8 (dart:io)",
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip, deflate",
+          "Content-Type": "application/json; charset=UTF-8",
+          "x-device-release-version": "3.7.3",
+          "integrity": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzY29wZSI6IkFOSU1FLkxJQlJBUlkuU0VBUkNIIiwiZXhwIjoxNzY0ODM5NTQ5LCJpاذن}:jأوإلى{دةك",
+          "x-device-timezone": deviceTimezone,
+          "x-device-id": deviceId,
+          "x-device-language": "ar",
+          "x-platform": "Mobile"
+        }
+      }
+    );
+
+    const data = response.data;
+    
+    // تنسيق النتائج بناءً على الهيكل الجديد
+    let results = [];
+    let paginationInfo = {};
+
+    if (data && Array.isArray(data.items)) {
+      results = data.items.map((item) => ({
+        id: item._id || null,
+        title: item.title || null,
+        alternativeTitle: item.alternative_title || null,
+        releaseStatus: item.release_status || null,
+        contentType: item.content_type || null,
+        genres: item.static_genres || [],
+        ageRating: item.ageRating || null,
+        availableEpisodes: item.available_episodes || null,
+        releaseYear: item.release_year || null,
+        releaseSeason: item.realease_season || null,
+        image: item.medium_picture || null,
+        malVotes: item.myAnimeList_votes || null,
+        malRating: item.myAnimeList_rating || null,
+        latestEpisode: item.latest_episode_released?.episode_number || null,
+        malFavorites: item.mal_favorites || null,
+      }));
+      
+      // معلومات التقسيم
+      paginationInfo = {
+        totalSize: data.size || 0,
+        currentPage: data.page || 0,
+        limit: data.limit || 30,
+        hasNext: data.hasNext || false,
+        doYouMean: data.doYouMean || null
+      };
+    }
+
+    if (results.length === 0) {
+      return NextResponse.json(
+        {
+          owner: "MATUOS-3MK",
+          code: 404,
+          msg: "لم يتم العثور على أي أنمي مطابق لنتيجة البحث",
+          data: {
+            query,
+            searchParams: {
+              page,
+              sortBy,
+              sortDirection,
+              textDirection,
+            },
+            apiResponse: data
+          },
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      owner: "MATUOS-3MK",
+      code: 0,
+      msg: "success",
+      data: {
+        query,
+        searchParams: {
+          page,
+          sortBy,
+          sortDirection,
+          textDirection,
+        },
+        count: results.length,
+        pagination: paginationInfo,
+        results,
+      },
+    });
+  } catch (err) {
+    console.error("Server error:", err.response?.data || err.message);
+    return NextResponse.json(
+      {
+        owner: "MATUOS-3MK",
+        code: 500,
+        msg: "حدث خطأ داخلي في السيرفر",
+        error: err.message,
+        apiError: err.response?.data
+      },
+      { status: 500 }
+    );
+  }
+}        "x-device-timezone": deviceTimezone,
         "x-device-id": deviceId,
         "x-device-language": "ar",
         "x-platform": "Mobile",
