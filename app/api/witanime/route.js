@@ -3,6 +3,26 @@
 import { NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 
+// إنشاء User-Agent عشوائي
+function getRandomUserAgent() {
+  const userAgents = [
+    // Chrome على Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    // Chrome على Mac
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    // Firefox على Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
+    // Safari على Mac
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+    // Chrome على Android
+    "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+    // Chrome على iOS
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0.0.0 Mobile/15E148 Safari/604.1",
+  ];
+  
+  return userAgents[Math.floor(Math.random() * userAgents.length)];
+}
+
 function slugifyName(name = "") {
   return name
     .toLowerCase()
@@ -10,16 +30,6 @@ function slugifyName(name = "") {
     .replace(/[^a-zA-Z0-9-]/g, "")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
-}
-
-function extractAnimeId(url) {
-  if (!url) return null;
-  const parts = url.split("/anime/");
-  if (parts.length > 1) {
-    const slug = parts[1].replace(/\//g, "");
-    return slug || null;
-  }
-  return null;
 }
 
 export async function GET(req) {
@@ -35,6 +45,218 @@ export async function GET(req) {
           msg: "يرجى إضافة اسم أنمي في باراميتر q",
         },
         { status: 400 }
+      );
+    }
+
+    // User-Agent عشوائي
+    const userAgent = getRandomUserAgent();
+    
+    // الـ Headers المحسنة
+    const headers = {
+      "User-Agent": userAgent,
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+      "Accept-Language": "ar,en-US;q=0.7,en;q=0.3",
+      "Accept-Encoding": "gzip, deflate, br",
+      "Connection": "keep-alive",
+      "Upgrade-Insecure-Requests": "1",
+      "Sec-Fetch-Dest": "document",
+      "Sec-Fetch-Mode": "navigate",
+      "Sec-Fetch-Site": "none",
+      "Sec-Fetch-User": "?1",
+      "Cache-Control": "max-age=0",
+      "TE": "trailers",
+    };
+
+    // إضافة Referer و Host
+    headers["Referer"] = "https://www.google.com/";
+    headers["Host"] = "witanime.you";
+
+    const encodedQuery = encodeURIComponent(query);
+    const searchUrl = `https://witanime.you/?search_param=animes&s=${encodedQuery}`;
+
+    console.log("Fetching URL:", searchUrl);
+    console.log("Using User-Agent:", userAgent);
+
+    // محاولة مع خيارات إضافية
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    try {
+      const response = await fetch(searchUrl, {
+        method: "GET",
+        headers: headers,
+        cache: "no-store",
+        signal: controller.signal,
+        // إضافة هذه الخيارات للتعامل مع Cloudflare
+        redirect: "follow",
+        // إضافة cookies افتراضية
+        credentials: "omit", // أو "include" إذا كنت تريد إرسال cookies
+      });
+
+      clearTimeout(timeoutId);
+
+      console.log("Response Status:", response.status);
+      console.log("Response Headers:", Object.fromEntries(response.headers.entries()));
+
+      if (!response.ok) {
+        // إذا كان 403، جرب طريقة مختلفة
+        if (response.status === 403 || response.status === 429) {
+          throw new Error(`تم حظر الوصول (${response.status}). الموقع يستخدم حماية.`);
+        }
+        
+        return NextResponse.json(
+          {
+            owner: "MATUOS-3MK",
+            code: response.status,
+            msg: `فشل في الاتصال بموقع WitAnime (${response.status})`,
+            headers: Object.fromEntries(response.headers.entries()),
+          },
+          { status: 500 }
+        );
+      }
+
+      const html = await response.text();
+      
+      // التحقق من أن الصفحة ليست صفحة Cloudflare
+      if (html.includes("Cloudflare") || html.includes("cf-browser-verification") || html.includes("Just a moment")) {
+        throw new Error("تم حظر الوصول بواسطة Cloudflare. الموقع يستخدم حماية متقدمة.");
+      }
+
+      const $ = cheerio.load(html);
+      const results = [];
+
+      // البحث عن نتائج الأنمي
+      $(".anime-card-container").each((_, container) => {
+        const $container = $(container);
+
+        // العنوان والرابط
+        const titleLink = $container.find(".anime-card-title h3 a");
+        const title = titleLink.text().trim();
+        const url = titleLink.attr("href");
+
+        if (!title || !url) return;
+
+        // الصورة
+        const img = $container.find(".anime-card-poster img.img-responsive");
+        const image = img.attr("src");
+
+        // الحالة
+        const status = $container.find(".anime-card-status a").text().trim();
+
+        // النوع
+        const type = $container.find(".anime-card-type a").text().trim();
+
+        // الوصف
+        const description = $container.find(".anime-card-title").attr("data-content") || "";
+
+        results.push({
+          id: url.split("/anime/")[1]?.replace(/\//g, "") || null,
+          title: title,
+          slug: slugifyName(title),
+          url: url,
+          image: image,
+          status: status,
+          type: type,
+          description: description,
+        });
+      });
+
+      // بديل إذا لم توجد نتائج في المكان المتوقع
+      if (results.length === 0) {
+        $(".anime-list-content .row.display-flex > div").each((_, col) => {
+          const $col = $(col);
+          const titleLink = $col.find("h3 a");
+          const title = titleLink.text().trim();
+          const url = titleLink.attr("href");
+
+          if (title && url) {
+            const img = $col.find("img.img-responsive");
+            const image = img.attr("src");
+            
+            results.push({
+              title: title,
+              url: url,
+              image: image,
+            });
+          }
+        });
+      }
+
+      const searchTitle = $(".second-section h3").text().trim() || `نتائج البحث عن ${query}`;
+
+      if (results.length === 0) {
+        // تحقق إذا كانت الصفحة تحتوي على رسالة "لا توجد نتائج"
+        const noResults = html.includes("لا توجد نتائج") || 
+                          html.includes("No results") || 
+                          html.includes("لم يتم العثور");
+        
+        return NextResponse.json(
+          {
+            owner: "MATUOS-3MK",
+            code: noResults ? 404 : 200,
+            msg: noResults ? "لم يتم العثور على أي أنمي مطابق" : "تم جلب الصفحة ولكن لم يتم العثور على نتائج",
+            data: {
+              query: query,
+              searchTitle: searchTitle,
+              htmlLength: html.length,
+              sampleHtml: html.substring(0, 500), // جزء من HTML للمساعدة في التصحيح
+            },
+          },
+          { status: noResults ? 404 : 200 }
+        );
+      }
+
+      return NextResponse.json({
+        owner: "MATUOS-3MK",
+        code: 0,
+        msg: "success",
+        data: {
+          query: query,
+          searchTitle: searchTitle,
+          count: results.length,
+          results: results,
+        },
+      });
+
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      throw fetchError;
+    }
+
+  } catch (err) {
+    console.error("Detailed error in WitAnime search:", {
+      message: err.message,
+      name: err.name,
+      stack: err.stack,
+    });
+
+    // رسالة خطأ محددة
+    let errorMsg = "حدث خطأ داخلي في السيرفر";
+    let errorCode = 500;
+
+    if (err.name === "AbortError") {
+      errorMsg = "انتهت مهلة الاتصال بموقع WitAnime";
+      errorCode = 504;
+    } else if (err.message.includes("Cloudflare") || err.message.includes("حظر")) {
+      errorMsg = "تم حظر الوصول بواسطة حماية الموقع (Cloudflare)";
+      errorCode = 403;
+    } else if (err.message.includes("ENOTFOUND") || err.message.includes("getaddrinfo")) {
+      errorMsg = "تعذر الاتصال بخادم WitAnime";
+      errorCode = 502;
+    }
+
+    return NextResponse.json(
+      {
+        owner: "MATUOS-3MK",
+        code: errorCode,
+        msg: errorMsg,
+        error: err.message,
+        suggestion: "جرب استخدام VPN أو تغيير User-Agent",
+      },
+      { status: errorCode }
+    );
+  }
+      }        { status: 400 }
       );
     }
 
